@@ -10,6 +10,7 @@
 # ================================================== #
 
 from .agent import *
+from .audio import *
 from .base import *
 from .image import *
 from .mode import *

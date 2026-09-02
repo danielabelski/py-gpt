@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.16 14:30:00                  #
+# Updated Date: 2026.09.02 18:00:00                  #
 # ================================================== #
 import json
 import os
@@ -759,3 +759,48 @@ class TestRenderer:
         renderer.pids = {1: "data"}
         renderer.remove_pid(1)
         assert 1 not in renderer.pids
+
+
+def test_auto_cleanup_excludes_audio_provider_memory(renderer, fake_window, monkeypatch):
+    """Whisper/Torch memory excluded by audio providers must not trigger renderer cleanup."""
+    meta = DummyCtxMeta()
+    fake_window.core.config.get = MagicMock(
+        side_effect=lambda key, default=None: 2500 if key == "render.memory.limit" else default
+    )
+    fake_window.core.audio = SimpleNamespace(
+        get_memory_excluded_bytes=MagicMock(return_value=1000)
+    )
+    monkeypatch.setattr(
+        "pygpt_net.core.render.web.renderer.mem_used_bytes",
+        lambda: 3000,
+    )
+    renderer.fresh = MagicMock()
+    renderer.auto_cleanup_soft = MagicMock()
+
+    renderer.auto_cleanup(meta)
+
+    renderer.fresh.assert_not_called()
+    renderer.auto_cleanup_soft.assert_called_once_with(meta)
+    fake_window.core.audio.get_memory_excluded_bytes.assert_called_once()
+
+
+def test_auto_cleanup_uses_effective_memory_after_exclusion(renderer, fake_window, monkeypatch):
+    """Cleanup still runs when RSS minus excluded Whisper/Torch memory exceeds the limit."""
+    meta = DummyCtxMeta()
+    fake_window.core.config.get = MagicMock(
+        side_effect=lambda key, default=None: 2500 if key == "render.memory.limit" else default
+    )
+    fake_window.core.audio = SimpleNamespace(
+        get_memory_excluded_bytes=MagicMock(return_value=1000)
+    )
+    monkeypatch.setattr(
+        "pygpt_net.core.render.web.renderer.mem_used_bytes",
+        lambda: 4000,
+    )
+    renderer.fresh = MagicMock()
+    renderer.auto_cleanup_soft = MagicMock()
+
+    renderer.auto_cleanup(meta)
+
+    renderer.fresh.assert_called_once_with(meta, force=True)
+    renderer.auto_cleanup_soft.assert_not_called()

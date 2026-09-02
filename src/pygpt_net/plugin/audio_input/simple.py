@@ -107,6 +107,17 @@ class Simple:
                 self.plugin.window.core.config.save()
                 return
 
+        # prepare local provider before recording. In particular, do not capture
+        # the first utterance while a missing local Whisper model is downloading.
+        if not realtime:
+            try:
+                if not self.plugin.ensure_provider_ready():
+                    return
+            except Exception as e:
+                self.plugin.error(e)
+                self.switch_btn_start()
+                return
+
         # enable continuous mode if notepad tab is active
         self.plugin.window.core.audio.capture.set_repeat_callback(self.on_stop)
         continuous_enabled = self.plugin.window.core.config.get('audio.input.continuous', False)

@@ -126,6 +126,27 @@ class Audio:
             return self.providers[type]
         return {}
 
+    def get_memory_excluded_bytes(self) -> int:
+        """
+        Return memory that should not count towards renderer auto-cleanup.
+
+        Audio providers may run native runtimes in the main process (for
+        example local Whisper/Torch). Such memory is unrelated to WebEngine
+        rendering, so providers can report an estimated resident footprint to
+        exclude from the renderer threshold.
+        """
+        total = 0
+        for providers in self.providers.values():
+            for provider in providers.values():
+                getter = getattr(provider, "get_memory_excluded_bytes", None)
+                if not callable(getter):
+                    continue
+                try:
+                    total += max(0, int(getter()))
+                except Exception:
+                    pass
+        return total
+
     def get_ids(self, type: str = "output") -> list:
         """
         Get all providers ids

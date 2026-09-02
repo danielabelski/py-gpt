@@ -51,6 +51,7 @@ class Plugin(BasePlugin):
         self.order = 1
         self.use_locale = True
         self.input_file = "input.wav"
+        self.provider_preparing = False
         self.config = Config(self)
 
     def get_input_path(self) -> str:
@@ -132,6 +133,64 @@ class Plugin(BasePlugin):
             words = [x.strip() for x in words]  # remove white-spaces
         return words
 
+    def ensure_provider_ready(self) -> bool:
+        """
+        Prepare provider resources required before recording.
+
+        For local Whisper, start model download in background when the selected
+        checkpoint is not cached yet. Recording is blocked until preparation
+        finishes so the first captured audio is not held while the model downloads.
+
+        :return: True if recording can start, False otherwise
+        """
+        provider = self.get_provider()
+        if provider.id != "openai_whisper_local":
+            return True
+
+        if not provider.is_configured():
+            raise ImportError(provider.get_config_message())
+
+        model_name = provider.get_model_name()
+        if self.provider_preparing:
+            msg = trans('audio.whisper.model.downloading').format(model=model_name)
+            self.set_status(msg)
+            self.window.update_status(msg)
+            return False
+
+        if provider.is_model_downloaded():
+            return True
+
+        self.provider_preparing = True
+        msg = trans('audio.whisper.model.downloading').format(model=model_name)
+        self.set_status(msg)
+        self.window.update_status(msg)
+
+        worker = Worker()
+        worker.from_defaults(self)
+        worker.prepare_model = True
+        worker.prepare_provider = provider
+        worker.prepare_model_name = model_name
+        worker.signals.model_ready.connect(self.handle_provider_ready)
+        worker.signals.model_prepare_failed.connect(self.handle_provider_prepare_failed)
+        worker.run_async()
+        return False
+
+    @Slot(str)
+    def handle_provider_ready(self, model_name: str):
+        """Handle local Whisper model download/load completion."""
+        self.provider_preparing = False
+        msg = trans('audio.whisper.model.ready').format(model=model_name)
+        self.set_status(msg)
+        self.window.update_status(msg)
+
+    @Slot(str)
+    def handle_provider_prepare_failed(self, error: str):
+        """Handle local Whisper model preparation failure."""
+        self.provider_preparing = False
+        msg = trans('audio.whisper.model.download_failed').format(error=error)
+        self.set_status(msg)
+        self.window.update_status(msg)
+
     def toggle_recording_simple(
             self,
             state: bool = None,
@@ -168,6 +227,20 @@ class Plugin(BasePlugin):
         """
         if not self.is_advanced():
             return
+
+        if state:
+            try:
+                if not self.ensure_provider_ready():
+                    self.speech_enabled = False
+                    self.listening = False
+                    self.window.ui.plugin_addon['audio.input'].btn_toggle.setChecked(False)
+                    return
+            except Exception as e:
+                self.speech_enabled = False
+                self.listening = False
+                self.window.ui.plugin_addon['audio.input'].btn_toggle.setChecked(False)
+                self.error(e)
+                return
 
         self.speech_enabled = state
         self.window.ui.plugin_addon['audio.input'].btn_toggle.setChecked(state)
@@ -253,6 +326,11 @@ class Plugin(BasePlugin):
         elif name == Event.PLUGIN_OPTION_GET:
             if "name" in data and data["name"] == "audio.input.advanced":
                 data["value"] = self.is_advanced()
+
+        elif name == Event.PLUGIN_SETTINGS_CHANGED:
+            provider = self.get_providers().get("openai_whisper_local")
+            if provider is not None and hasattr(provider, "apply_memory_policy"):
+                provider.apply_memory_policy()
 
     def on_ctx_begin(self, ctx: CtxItem):
         """

@@ -492,7 +492,13 @@ class Renderer(BaseRenderer):
         if limit_bytes <= 0:
             self.auto_cleanup_soft(meta)
             return
-        used = mem_used_bytes()
+        rss = mem_used_bytes()
+        excluded = 0
+        try:
+            excluded = self.window.core.audio.get_memory_excluded_bytes()
+        except Exception:
+            pass
+        used = max(0, rss - excluded)
         if used >= limit_bytes:
             now = datetime.now()
             if self._last_memory_cleanup is not None:
@@ -502,7 +508,13 @@ class Renderer(BaseRenderer):
             try:
                 self._last_memory_cleanup = now
                 self.fresh(meta, force=True)
-                print(f"[Renderer] Memory auto-cleanup done, reached limit: {sizeof_fmt(used)} / {sizeof_fmt(limit_bytes)}")
+                details = ""
+                if excluded > 0:
+                    details = f" (RSS: {sizeof_fmt(rss)}, excluded: {sizeof_fmt(excluded)})"
+                print(
+                    f"[Renderer] Memory auto-cleanup done, reached limit: "
+                    f"{sizeof_fmt(used)} / {sizeof_fmt(limit_bytes)}{details}"
+                )
             except Exception as e:
                 self.window.core.debug.log(e)
         else:

@@ -6,49 +6,11 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.02 16:00:00                  #
+# Updated Date: 2025.08.11 14:00:00                  #
 # ================================================== #
 
 import os.path
-import sys
 import time
-import typing
-
-
-def _ensure_python310_typing_self_compat():
-    """
-    Work around Python 3.10 builds exposing ``typing.Self`` as a plain
-    ``_SpecialForm`` that cannot be nested in ``Optional``/``Union``.
-
-    Some third-party audio/API dependencies import ``Self`` through
-    ``typing_extensions`` and evaluate annotations at import time. On affected
-    Python 3.10 builds this raises:
-
-        TypeError: Plain typing.Self is not valid as type argument
-
-    Python 3.11+ implements PEP 673 natively, so no compatibility patch is
-    needed there. The probe below keeps the workaround limited to runtimes that
-    actually exhibit the broken behaviour.
-    """
-    if sys.version_info >= (3, 11):
-        return
-
-    self_type = getattr(typing, "Self", None)
-    if self_type is None:
-        return
-
-    try:
-        typing.Optional[self_type]
-    except TypeError as exc:
-        if "Self is not valid as type argument" not in str(exc):
-            return
-        typing.Self = typing.TypeVar("Self")
-
-
-# Apply before importing third-party audio modules. ``typing_extensions`` may
-# otherwise cache the incompatible ``typing.Self`` object during its import.
-_ensure_python310_typing_self_compat()
-
 import speech_recognition as sr
 import audioop
 
@@ -62,6 +24,8 @@ from pygpt_net.plugin.base.worker import BaseWorker, BaseSignals
 class WorkerSignals(BaseSignals):
     transcribed = Signal(str, str)
     on_realtime = Signal(str)
+    model_ready = Signal(str)
+    model_prepare_failed = Signal(str)
 
 
 class Worker(BaseWorker):
@@ -74,12 +38,17 @@ class Worker(BaseWorker):
         self.path = None
         self.advanced = False
         self.transcribe = False
+        self.prepare_model = False
+        self.prepare_provider = None
+        self.prepare_model_name = None
 
     @Slot()
     def run(self):
         """Run worker."""
         try:
-            if self.transcribe:
+            if self.prepare_model:
+                self.handle_model_prepare()
+            elif self.transcribe:
                 self.handle_file()  # from file
             else:
                 if self.advanced:
@@ -90,6 +59,24 @@ class Worker(BaseWorker):
             self.error(e)
         finally:
             self.cleanup()
+
+    def handle_model_prepare(self):
+        """Download and load the selected local Whisper model."""
+        provider = self.prepare_provider or self.plugin.get_provider()
+        model_name = self.prepare_model_name or provider.get_model_name()
+        try:
+            self.status(
+                trans('audio.whisper.model.downloading').format(model=model_name)
+            )
+            provider.load_model(model_name)
+            if (hasattr(provider, "should_keep_model_in_memory")
+                    and not provider.should_keep_model_in_memory()
+                    and hasattr(provider, "release_model")):
+                provider.release_model()
+            self.signals.model_ready.emit(model_name)
+        except Exception as e:
+            self.signals.model_prepare_failed.emit(str(e))
+            raise
 
     def handle_file(self):
         """Handle file"""
