@@ -1056,7 +1056,6 @@ PyGPT has a preconfigured list of models (as of 2026-09-02):
 - `deep-research-preview-04-2026` (Google)
 - `deep-research-pro-preview-12-2025` (Google)
 - `deepseek-r1:8b` (Ollama)
-- `deepseek-v3.1` (Ollama)
 - `deepseek-v4-flash` (DeepSeek)
 - `deepseek-v4-pro` (DeepSeek)
 - `gemini-2.5-computer-use-preview-10-2025` (Google)
@@ -1073,7 +1072,7 @@ PyGPT has a preconfigured list of models (as of 2026-09-02):
 - `gemini-3.5-flash` (Google)
 - `gemini-3.5-flash-lite` (Google)
 - `gemini-3.6-flash` (Google)
-- `gemma4:12b` (Ollama)
+- `gemma4:e4b` (Ollama)
 - `gpt-3.5-turbo` (OpenAI)
 - `gpt-3.5-turbo-instruct` (OpenAI)
 - `gpt-4` (OpenAI)
@@ -1111,6 +1110,7 @@ PyGPT has a preconfigured list of models (as of 2026-09-02):
 - `grok-imagine-video-1.5` (xAI)
 - `imagen-4.0-generate-001` (Google)
 - `llama2-uncensored` (Ollama)
+- `llama3.1:8b` (Ollama)
 - `llama4:scout` (Ollama)
 - `mistral-small3.2` (Ollama)
 - `nano-banana-pro-preview` (Google)
@@ -1123,8 +1123,8 @@ PyGPT has a preconfigured list of models (as of 2026-09-02):
 - `o3-pro` (OpenAI)
 - `o4-mini` (OpenAI)
 - `o4-mini-deep-research` (OpenAI)
-- `qwen3.6:27b-coding` (Ollama)
-- `qwen3.6:35b-a3b` (Ollama)
+- `qwen3.6:27b` (Ollama)
+- `qwen3.5:9b` (Ollama)
 - `sonar` (Perplexity)
 - `sonar-deep-research` (Perplexity)
 - `sonar-pro` (Perplexity)
@@ -1187,15 +1187,15 @@ For example, on Linux:
 
 4) Run the model locally on your machine. For example, on Linux:
 
-```ollama run gemma4:12b```
+```ollama run gemma4:e4b```
 
 5) Return to PyGPT and select the correct model from models list to chat with selected model using Ollama running locally.
 
 **Example available models**
 
-- `gemma4:12b`
-- `qwen3.6:35b-a3b`
-- `qwen3.6:27b-coding`
+- `gemma4:e4b`
+- `qwen3.5:9b`
+- `qwen3.6:27b`
 - `llama4:scout`
 - `mistral-small3.2`
 - `deepseek-r1:8b`
@@ -1241,7 +1241,7 @@ You can use an Ollama instance for embeddings. Simply select the `ollama` provid
 
 Define parameters like model name and Ollama base URL in the Embeddings provider **kwargs list, e.g.:
 
-- name: `model_name`, value: `gemma4:12b`, type: `str`
+- name: `model_name`, value: `gemma4:e4b`, type: `str`
 
 - name: `base_url`, value: `http://localhost:11434`, type: `str`
 
@@ -3230,6 +3230,15 @@ may consume additional tokens that are not displayed in the main window.
 
 ## Recent changes:
 
+**2.8.5 (2026-09-02)**
+
+- Local Whisper audio input improvements: optimized execution and error handling, added an option to keep the model loaded in RAM, and simplified local model configuration.
+- Added Vision support for local Ollama models. To enable it, simply enable **Image input** in the model settings (if the selected model supports vision).
+- Fixed Ollama connection in Chat with files mode.
+- Added **Ask with screenshot → Select region...** to the tray menu, allowing interactive selection of a screen region for screenshot capture.
+- Added new Ollama models: `SpeakLeash/bielik-11b-v3.0-instruct:Q4_K_M`, `deepseek-r1:8b`, `gemma4:e4b`, `llama4:scout`, `mistral-small3.2`, `nemotron-3.5-lightning:30b`, `qwen3.6:27b`, and `qwen3.5:9b`.
+- Removed **Assistants** mode because the OpenAI Assistants API was deprecated and shut down on August 26, 2026.
+
 **2.8.4 (2026-08-19)**
 
 - Added a new Security settings section for host-side plugin permissions.
@@ -3247,54 +3256,6 @@ may consume additional tokens that are not displayed in the main window.
 - Fixed the Painter tool restoring the wrong color icon after application restart.
 - Fixed escaped Unicode characters in stored and displayed command/tool JSON, including nested tool responses.
 - Updated examples and documentation.
-
-**2.8.3 (2026-08-16)**
-
-- Fixed duplicated attachments being displayed after tool calls.
-- Fixed duplicated images in tool chains.
-- Fixed attachment paths in additional context so the full filesystem path is no longer sent.
-- Fixed URL extraction from responses.
-- Fixed reasoning context being appended to responses for local Ollama models such as DeepSeek.
-- Added native attachment file upload when supported by the provider.
-- Added real-time reasoning rendering.
-- Added collapse/expand controls for URLs and attachments lists.
-- Added missing settings descriptions.
-- Upgraded the image generation plugin to support the newest models.
-- Changed attachment archive rendering to display an archive as a single entry.
-- Changed tool-chain rendering to display action icons at the end of the chain.
-- Set max_total_tokens to 0 by default.
-- Updated the context max limit option description.
-- Updated documentation and configuration descriptions.
-
-**2.8.2 (2026-08-15)**
-
-- Added ARM64 AppImage and Snap builds.
-- Added support for preserving full archive paths when attaching ZIP files.
-- Removed the Send mode: Off option.
-- Improved tool call rendering.
-- Improved CSS and UI.
-- Moved the Clear input on send option to Settings.
-
-**2.8.1 (2026-08-13)**
-
-- Added LiteLLM as LLM provider - [#181](https://github.com/szczyglis-dev/py-gpt/pull/181), thanks to [@RheagalFire](https://github.com/RheagalFire).
-- Added Forge as LLM provider - [#173](https://github.com/szczyglis-dev/py-gpt/pull/173), thanks to [@Yiiii0](https://github.com/Yiiii0).
-- Added Eden AI as LLM provider - [#194](https://github.com/szczyglis-dev/py-gpt/pull/194), thanks to [@MVS-source](https://github.com/MVS-source).
-- Added TwelveLabs plugin (video understanding with Pegasus + Marengo embeddings) - [#191](https://github.com/szczyglis-dev/py-gpt/pull/191), thanks to [@mohit-twelvelabs](https://github.com/mohit-twelvelabs).
-- Fix: use unique filename per xAI TTS generation to avoid Windows file-lock PermissionError - [#192](https://github.com/szczyglis-dev/py-gpt/pull/192), thanks to [@LittleBallOfPurr](https://github.com/LittleBallOfPurr).
-- Fix: image and video URLs formatting in Windows.
-- Added an option to hide models from the model list in the Models Editor.
-- UI improvements.
-
-**2.8.0 (2026-08-12)**
-
-- Upgraded all models to their latest available versions.
-- Upgraded dependencies.
-- Fixed compatibility with the latest models.
-- Fixed the Runner agents workflow.
-- Fixed the Ollama provider and custom model handling - [#169](https://github.com/szczyglis-dev/py-gpt/pull/169), thanks to [@ba2512005](https://github.com/ba2512005).
-- Fixed top_p handling and added temperature guards for Claude 4.x Anthropic models - [#184](https://github.com/szczyglis-dev/py-gpt/pull/184), thanks to [@robertnama](https://github.com/robertnama).
-- Fixed message handling for Mistral - [#185](https://github.com/szczyglis-dev/py-gpt/pull/185), thanks to [@WildGreenRose](https://github.com/WildGreenRose).
 
 
 # Credits and links

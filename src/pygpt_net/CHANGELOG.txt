@@ -1,3 +1,12 @@
+2.8.5 (2026-09-02)
+
+- Local Whisper audio input improvements: optimized execution and error handling, added an option to keep the model loaded in RAM, and simplified local model configuration.
+- Added Vision support for local Ollama models. To enable it, simply enable Image input in the model settings (if the selected model supports vision).
+- Fixed Ollama connection in Chat with files mode.
+- Added Ask with screenshot → Select region... to the tray menu, allowing interactive selection of a screen region for screenshot capture.
+- Added new Ollama models: SpeakLeash/bielik-11b-v3.0-instruct:Q4_K_M, deepseek-r1:8b, gemma4:e4b, llama4:scout, mistral-small3.2, nemotron-3.5-lightning:30b, qwen3.6:27b, and qwen3.5:9b.
+- Removed Assistants mode because the OpenAI Assistants API was deprecated and shut down on August 26, 2026.
+
 2.8.4 (2026-08-19)
 
 - Added a new Security settings section for host-side plugin permissions.

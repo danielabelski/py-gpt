@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.08.26 19:00:00                  #
+# Updated Date: 2026.09.02 20:55:00                  #
 # ================================================== #
 
 import os
@@ -19,6 +19,7 @@ from llama_index.core.base.embeddings.base import BaseEmbedding
 
 from pygpt_net.core.types import (
     MODE_LLAMA_INDEX,
+    MODE_CHAT,
 )
 from pygpt_net.provider.llms.base import BaseLLM
 from pygpt_net.item.model import ModelItem
@@ -83,34 +84,41 @@ class OllamaLLM(BaseLLM):
         :param stream: stream mode
         :return: LLM provider instance
         """
-        from .ollama_custom import Ollama
+        from llama_index.llms.openai_like import OpenAILike
+
         nest_asyncio.apply()
         args = self.parse_args(model.llama_index, window)
-        if "request_timeout" not in args:
-            args["request_timeout"] = 120
-        if 'OLLAMA_API_BASE' in os.environ:
-            if "base_url" not in args:
-                args["base_url"] = os.environ['OLLAMA_API_BASE']
-        if "model" not in args:
-            args["model"] = (model.id or "").strip()
-        else:
-            args["model"] = (args["model"] or "").strip()
-        if "request_timeout" not in args:
-            args["request_timeout"] = 300
-        # Apply context and output token settings from model/config
-        if window:
-            ctx_size = window.core.models.get_num_ctx(model.id) if model.id else 0
-            if ctx_size <= 0:
-                ctx_size = window.core.config.get("max_total_tokens") or 0
-            if ctx_size > 0:
-                args["context_window"] = int(ctx_size)
-            max_out = window.core.models.get_tokens(model.id) if model.id else 0
-            if max_out <= 0:
-                max_out = window.core.config.get("max_output_tokens") or 0
-            if max_out > 0:
-                extra_opts = args.get("additional_kwargs") or {}
-                args["additional_kwargs"] = {**extra_opts, "num_predict": int(max_out)}
-        return Ollama(**args)
+
+        model_id = (model.get_ollama_model() or model.id or "").strip()
+        if not model_id:
+            raise ValueError("Ollama model name is required")
+        args["model"] = model_id
+
+        # Reuse the exact endpoint/key resolution used by normal Chat,
+        # including OLLAMA_API_BASE and per-model custom API overrides.
+        client_args = window.core.models.prepare_client_args(MODE_CHAT, model)
+        api_base = (client_args.get("base_url") or "").strip()
+        if not api_base:
+            api_base = window.core.models.ollama.get_base_url().rstrip("/") + "/v1"
+
+        if not args.get("api_key"):
+            args["api_key"] = client_args.get("api_key") or "ollama"
+        if not args.get("api_base"):
+            args["api_base"] = api_base
+        if "is_chat_model" not in args:
+            args["is_chat_model"] = True
+        if "is_function_calling_model" not in args:
+            args["is_function_calling_model"] = bool(model.tool_calls)
+
+        # Keep PyGPT model limits in LlamaIndex metadata/request settings.
+        ctx_size = window.core.models.get_num_ctx(model.id) if model.id else 0
+        if ctx_size <= 0:
+            ctx_size = window.core.config.get("max_total_tokens") or 0
+        if ctx_size > 0 and "context_window" not in args:
+            args["context_window"] = int(ctx_size)
+
+        args = self.inject_llamaindex_http_clients(args, window.core.config)
+        return OpenAILike(**args)
 
     def get_embeddings_model(
             self,

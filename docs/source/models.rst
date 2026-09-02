@@ -17,7 +17,6 @@ PyGPT has a preconfigured list of models (as of 2026-09-02):
 - ``deep-research-preview-04-2026`` (Google)
 - ``deep-research-pro-preview-12-2025`` (Google)
 - ``deepseek-r1:8b`` (Ollama)
-- ``deepseek-v3.1`` (Ollama)
 - ``deepseek-v4-flash`` (DeepSeek)
 - ``deepseek-v4-pro`` (DeepSeek)
 - ``gemini-2.5-computer-use-preview-10-2025`` (Google)
@@ -34,7 +33,7 @@ PyGPT has a preconfigured list of models (as of 2026-09-02):
 - ``gemini-3.5-flash`` (Google)
 - ``gemini-3.5-flash-lite`` (Google)
 - ``gemini-3.6-flash`` (Google)
-- ``gemma4:12b`` (Ollama)
+- ``gemma4:e4b`` (Ollama)
 - ``gpt-3.5-turbo`` (OpenAI)
 - ``gpt-3.5-turbo-instruct`` (OpenAI)
 - ``gpt-4`` (OpenAI)
@@ -72,6 +71,7 @@ PyGPT has a preconfigured list of models (as of 2026-09-02):
 - ``grok-imagine-video-1.5`` (xAI)
 - ``imagen-4.0-generate-001`` (Google)
 - ``llama2-uncensored`` (Ollama)
+- ``llama3.1:8b`` (Ollama)
 - ``llama4:scout`` (Ollama)
 - ``mistral-small3.2`` (Ollama)
 - ``nano-banana-pro-preview`` (Google)
@@ -84,8 +84,8 @@ PyGPT has a preconfigured list of models (as of 2026-09-02):
 - ``o3-pro`` (OpenAI)
 - ``o4-mini`` (OpenAI)
 - ``o4-mini-deep-research`` (OpenAI)
-- ``qwen3.6:27b-coding`` (Ollama)
-- ``qwen3.6:35b-a3b`` (Ollama)
+- ``qwen3.6:27b`` (Ollama)
+- ``qwen3.5:9b`` (Ollama)
 - ``sonar`` (Perplexity)
 - ``sonar-deep-research`` (Perplexity)
 - ``sonar-pro`` (Perplexity)
@@ -177,15 +177,15 @@ For example, on Linux:
 
 .. code-block:: sh
 
-    $ ollama run gemma4:12b
+    $ ollama run gemma4:e4b
 
 5) Return to PyGPT and select the correct model from models list to chat with selected model using Ollama running locally.
 
 **Example available models:**
 
-- ``gemma4:12b``
-- ``qwen3.6:35b-a3b``
-- ``qwen3.6:27b-coding``
+- ``gemma4:e4b``
+- ``qwen3.5:9b``
+- ``qwen3.6:27b``
 - ``llama4:scout``
 - ``mistral-small3.2``
 - ``deepseek-r1:8b``
@@ -232,7 +232,7 @@ You can use an Ollama instance for embeddings. Simply select the ``ollama`` prov
 
 Define parameters like model name and Ollama base URL in the Embeddings provider **kwargs list, e.g.:
 
-- name: ``model_name``, value: ``gemma4:12b``, type: ``str``
+- name: ``model_name``, value: ``gemma4:e4b``, type: ``str``
 
 - name: ``base_url``, value: ``http://localhost:11434``, type: ``str``
 
