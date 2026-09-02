@@ -11,6 +11,8 @@
 
 from typing import cast
 
+from pygpt_net.core.typing_compat import ensure_typing_self_compat
+
 from .base import BaseProvider
 
 
@@ -56,6 +58,7 @@ class OpenAIWhisperLocal(BaseProvider):
         if not self.is_configured():
             raise ImportError(self.get_config_message())
 
+        ensure_typing_self_compat()
         import whisper
 
         model = whisper.load_model(self.plugin.get_option_value('whisper_local_model'))
@@ -74,6 +77,7 @@ class OpenAIWhisperLocal(BaseProvider):
         if is_compiled:
             raise ValueError("Local models are not available in compiled version.")
         try:
+            ensure_typing_self_compat()
             import whisper
         except ImportError:
             return False

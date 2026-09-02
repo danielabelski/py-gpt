@@ -6,11 +6,49 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.08.11 14:00:00                  #
+# Updated Date: 2026.09.02 16:00:00                  #
 # ================================================== #
 
 import os.path
+import sys
 import time
+import typing
+
+
+def _ensure_python310_typing_self_compat():
+    """
+    Work around Python 3.10 builds exposing ``typing.Self`` as a plain
+    ``_SpecialForm`` that cannot be nested in ``Optional``/``Union``.
+
+    Some third-party audio/API dependencies import ``Self`` through
+    ``typing_extensions`` and evaluate annotations at import time. On affected
+    Python 3.10 builds this raises:
+
+        TypeError: Plain typing.Self is not valid as type argument
+
+    Python 3.11+ implements PEP 673 natively, so no compatibility patch is
+    needed there. The probe below keeps the workaround limited to runtimes that
+    actually exhibit the broken behaviour.
+    """
+    if sys.version_info >= (3, 11):
+        return
+
+    self_type = getattr(typing, "Self", None)
+    if self_type is None:
+        return
+
+    try:
+        typing.Optional[self_type]
+    except TypeError as exc:
+        if "Self is not valid as type argument" not in str(exc):
+            return
+        typing.Self = typing.TypeVar("Self")
+
+
+# Apply before importing third-party audio modules. ``typing_extensions`` may
+# otherwise cache the incompatible ``typing.Self`` object during its import.
+_ensure_python310_typing_self_compat()
+
 import speech_recognition as sr
 import audioop
 
