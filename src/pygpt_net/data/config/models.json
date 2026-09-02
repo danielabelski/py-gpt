@@ -496,41 +496,6 @@
             "provider": "ollama",
             "tool_calls": true
         },
-        "deepseek-v3.1": {
-            "id": "deepseek-v3.1",
-            "name": "deepseek-v3.1",
-            "mode": [
-                "chat",
-                "llama_index",
-                "agent_llama",
-                "agent_openai",
-                "agent",
-                "expert"
-            ],
-            "llama_index": {
-                "args": [
-                    {
-                        "name": "model",
-                        "value": "deepseek-v3.1",
-                        "type": "str"
-                    }
-                ],
-                "env": []
-            },
-            "ctx": 160000,
-            "tokens": 8192,
-            "default": false,
-            "input": [
-                "text"
-            ],
-            "output": [
-                "text"
-            ],
-            "extra": {},
-            "imported": false,
-            "provider": "ollama",
-            "tool_calls": true
-        },
         "deepseek_api_v4_flash": {
             "id": "deepseek-v4-flash",
             "name": "DeepSeek API (V4 Flash)",
@@ -1330,9 +1295,9 @@
             "provider": "google",
             "tool_calls": true
         },
-        "gemma4:12b": {
-            "id": "gemma4:12b",
-            "name": "gemma4:12b",
+        "gemma4:e4b": {
+            "id": "gemma4:e4b",
+            "name": "gemma4:e4b",
             "mode": [
                 "chat",
                 "llama_index",
@@ -1345,7 +1310,7 @@
                 "args": [
                     {
                         "name": "model",
-                        "value": "gemma4:12b",
+                        "value": "gemma4:e4b",
                         "type": "str"
                     }
                 ],
@@ -4009,6 +3974,42 @@
             "provider": "ollama",
             "tool_calls": false
         },
+        "llama3.1": {
+            "id": "llama3.1",
+            "name": "llama3.1",
+            "mode": [
+                "chat",
+                "llama_index",
+                "agent_llama",
+                "agent_openai",
+                "agent",
+                "expert"
+            ],
+            "llama_index": {
+                "args": [
+                    {
+                        "name": "model",
+                        "value": "llama3.1",
+                        "type": "str"
+                    }
+                ],
+                "env": []
+            },
+            "ctx": 131072,
+            "tokens": 8192,
+            "default": false,
+            "input": [
+                "text",
+                "image"
+            ],
+            "output": [
+                "text"
+            ],
+            "extra": {},
+            "imported": false,
+            "provider": "ollama",
+            "tool_calls": true
+        },
         "llama4:scout": {
             "id": "llama4:scout",
             "name": "llama4:scout",
@@ -4685,9 +4686,9 @@
             "provider": "openai",
             "tool_calls": true
         },
-        "qwen3.6:27b-coding": {
-            "id": "qwen3.6:27b-coding",
-            "name": "qwen3.6:27b-coding",
+        "qwen3.6:27b": {
+            "id": "qwen3.6:27b",
+            "name": "qwen3.6:27b",
             "mode": [
                 "chat",
                 "llama_index",
@@ -4700,7 +4701,7 @@
                 "args": [
                     {
                         "name": "model",
-                        "value": "qwen3.6:27b-coding",
+                        "value": "qwen3.6:27b",
                         "type": "str"
                     }
                 ],
@@ -4721,9 +4722,9 @@
             "provider": "ollama",
             "tool_calls": true
         },
-        "qwen3.6:35b-a3b": {
-            "id": "qwen3.6:35b-a3b",
-            "name": "qwen3.6:35b-a3b",
+        "qwen3.5:9b": {
+            "id": "qwen3.5:9b",
+            "name": "qwen3.5:9b",
             "mode": [
                 "chat",
                 "llama_index",
@@ -4736,7 +4737,7 @@
                 "args": [
                     {
                         "name": "model",
-                        "value": "qwen3.6:35b-a3b",
+                        "value": "qwen3.5:9b",
                         "type": "str"
                     }
                 ],

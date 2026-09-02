@@ -390,13 +390,12 @@ class Patch:
                 ollama_models_to_add = [
                     "SpeakLeash/bielik-11b-v3.0-instruct:Q4_K_M",
                     "deepseek-r1:8b",
-                    "deepseek-v3.1",
-                    "gemma4:12b",
+                    "gemma4:e4b",
                     "llama4:scout",
                     "mistral-small3.2:latest",
                     "nemotron-3.5-lightning:30b",
-                    "qwen3.6:35b-a3b",
-                    "qwen3.6:27b-coding",
+                    "qwen3.5:9b",
+                    "qwen3.6:27b",
                 ]
 
                 for key in ollama_models_to_add:
