@@ -88,13 +88,15 @@ class Presets:
     def append_current(self):
         """Append current presets"""
         items = self.items
+        # Keep the deprecated Assistants preset file for backend compatibility,
+        # but never expose it in the selectable preset registry.
+        items.pop("current.assistant", None)
         ids = [
             ("current.chat", "chat"),
             ("current.completion", "completion"),
             ("current.img", "img"),
             ("current.vision", "vision"),
             ("current.langchain", "langchain"),
-            ("current.assistant", "assistant"),
             ("current.llama_index", "llama_index"),
             ("current.agent", "agent"),
             ("current.agent_llama", "agent_llama"),

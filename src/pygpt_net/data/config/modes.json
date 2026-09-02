@@ -1,8 +1,8 @@
 {
     "__meta__": {
-        "version": "2.6.30",
-        "app.version": "2.6.30",
-        "updated_at": "2025-08-28T09:00:00"
+        "version": "2.8.5",
+        "app.version": "2.8.5",
+        "updated_at": "2026-09-02T18:00:00"
     },
     "items": {
         "chat": {
@@ -41,12 +41,6 @@
             "label": "mode.img",
             "default": false
         },
-        "assistant": {
-            "id": "assistant",
-            "name": "assistant",
-            "label": "mode.assistant",
-            "default": false
-        },    
         "agent_llama": {
             "id": "agent_llama",
             "name": "Agent (LlamaIndex)",

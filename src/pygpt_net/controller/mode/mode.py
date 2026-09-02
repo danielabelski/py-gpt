@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.12.28 00:00:00                  #
+# Updated Date: 2026.09.02 18:10:00                  #
 # ================================================== #
 
 from pygpt_net.core.events import Event, AppEvent
@@ -43,6 +43,10 @@ class Mode:
         elif mode == "vision":
             print("Vision mode is deprecated from v2.6.30 and no longer supported. "
                   "Please use Chat mode with multimodal models instead.")
+            return MODE_CHAT
+        elif mode == "assistant":
+            print("Assistants mode is deprecated from v2.8.5 and no longer selectable. "
+                  "Switching to Chat mode.")
             return MODE_CHAT
         return mode
 

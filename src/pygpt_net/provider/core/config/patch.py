@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.16 18:40:00
+# Updated Date: 2026.09.02 18:00:00
 # ================================================== #
 
 import copy
@@ -430,6 +430,36 @@ class Patch:
                     if key not in data:
                         data[key] = cfg_get_base(key)
                         updated = True
+
+            # < 2.8.5
+            if old < parse_version("2.8.5"):
+                print("Migrating config from < 2.8.5...")
+
+                # OpenAI Assistants API mode is deprecated/removed from selectable modes.
+                if data.get("mode") == "assistant":
+                    data["mode"] = "chat"
+                    updated = True
+
+                # Remove stale per-mode selections so hidden Assistants state cannot
+                # reappear in mode-backed option lists after migration.
+                for map_key in ("current_model", "current_preset"):
+                    mapping = data.get(map_key)
+                    if isinstance(mapping, dict) and "assistant" in mapping:
+                        del mapping["assistant"]
+                        updated = True
+
+                # This setting is rendered from the global mode list; also clean an
+                # existing serialized value created by older versions.
+                auto_modes = data.get("llama.idx.auto.modes")
+                if isinstance(auto_modes, str):
+                    items = [item.strip() for item in auto_modes.split(",") if item.strip()]
+                    filtered = [item for item in items if item != "assistant"]
+                    if filtered != items:
+                        data["llama.idx.auto.modes"] = ",".join(filtered)
+                        updated = True
+                elif isinstance(auto_modes, list) and "assistant" in auto_modes:
+                    data["llama.idx.auto.modes"] = [item for item in auto_modes if item != "assistant"]
+                    updated = True
 
         # update file
         migrated = False

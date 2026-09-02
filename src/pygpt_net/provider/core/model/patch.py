@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.12 12:00:00                  #
+# Updated Date: 2026.09.02 18:10:00                  #
 # ================================================== #
 
 from packaging.version import parse as parse_version, Version
@@ -374,6 +374,14 @@ class Patch:
                         base_model = from_base(model)
                         if base_model:
                             data[model] = base_model
+                updated = True
+
+            # <  2.8.5 <--- remove deprecated Assistants mode from model capabilities
+            if old < parse_version("2.8.5"):
+                print("Migrating models from < 2.8.5...")
+                for model in data.values():
+                    if model.has_mode("assistant"):
+                        model.remove_mode("assistant")
                 updated = True
 
         # update file

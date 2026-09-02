@@ -1,8 +1,8 @@
 {
   "__meta__": {
-    "version": "2.8.4",
-    "app.version": "2.8.4",
-    "updated_at": "2026-08-19T00:00:00"
+    "version": "2.8.5",
+    "app.version": "2.8.5",
+    "updated_at": "2026-09-02T18:00:00"
   },
   "access.audio.event.speech": false,
   "access.audio.event.speech.disabled": [],
@@ -176,7 +176,6 @@
   "ctx.urls.internal": false,
   "ctx.use_extra": true,
   "current_model": {
-    "assistant": "gpt-5.6-terra-high",
     "chat": "gpt-5.6-terra-high",
     "completion": "gpt-3.5-turbo-instruct",
     "img": "gpt-image-2",
@@ -190,7 +189,6 @@
     "computer": "computer-use-preview"
   },
   "current_preset": {
-    "assistant": "",
     "chat": "",
     "completion": "",
     "img": "",
@@ -253,7 +251,7 @@
   "llama.hub.loaders.use_local": false,
   "llama.idx.auto": false,
   "llama.idx.auto.index": "base",
-  "llama.idx.auto.modes": "chat,completion,vision,assistant,research,llama_index,agent",
+  "llama.idx.auto.modes": "chat,completion,vision,research,llama_index,agent",
   "llama.idx.chat.auto_retrieve": true,
   "llama.idx.chat.mode": "context",
   "llama.idx.current": null,
