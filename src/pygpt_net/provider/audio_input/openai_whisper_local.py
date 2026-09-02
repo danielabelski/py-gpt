@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.02 17:30:00                  #
+# Updated Date: 2026.09.02 19:40:00                  #
 # ================================================== #
 
 import gc
@@ -282,6 +282,14 @@ class OpenAIWhisperLocal(BaseProvider):
 
         :return: message
         """
-        return ("Please install OpenAI whisper model "
-                "'pip install git+https://github.com/openai/whisper.git' "
-                "or pip install openai-whisper to use the model")
+        return (
+            "Local Whisper model is not installed.\n\n"
+            "To use the local Whisper provider, install it manually in your Python environment with:\n\n"
+            "pip install git+https://github.com/openai/whisper.git\n"
+            "or\n"
+            "pip install openai-whisper\n\n"
+            "Installation may take a while and may require significant disk space, because large "
+            "dependencies such as PyTorch may also need to be installed.\n\n"
+            "INFO: Local Whisper is not available in compiled/binary, Snap or AppImage builds of PyGPT. "
+            "Use a source/pip installation of PyGPT to use the local model."
+        )

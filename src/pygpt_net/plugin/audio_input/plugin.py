@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.08.31 23:00:00                  #
+# Updated Date: 2026.09.02 19:40:00                  #
 # ================================================== #
 
 import os
@@ -148,7 +148,11 @@ class Plugin(BasePlugin):
             return True
 
         if not provider.is_configured():
-            raise ImportError(provider.get_config_message())
+            # Missing local Whisper is an expected setup state, not an application
+            # error. Show a concise installation hint instead of routing it through
+            # the generic exception handler (which adds type/message/traceback).
+            self.window.ui.dialogs.alert(provider.get_config_message())
+            return False
 
         model_name = provider.get_model_name()
         if self.provider_preparing:
