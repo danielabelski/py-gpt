@@ -513,7 +513,7 @@ For a typical manual text message, a simplified sequence is approximately:
        v
    CTX_END
 
-Exact ordering can differ for image generation, Realtime, Assistants, agents, internal calls and tool
+Exact ordering can differ for image generation, Realtime, agents, internal calls and tool
 continuations.
 
 Event debug logging

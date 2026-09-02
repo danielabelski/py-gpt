@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.02 18:10:00                  #
+# Updated Date: 2026.09.02 18:30:00                  #
 # ================================================== #
 
 from packaging.version import parse as parse_version, Version
@@ -376,13 +376,54 @@ class Patch:
                             data[model] = base_model
                 updated = True
 
-            # <  2.8.5 <--- remove deprecated Assistants mode from model capabilities
+            # <  2.8.5 <--- remove deprecated Assistants mode and add current Ollama models
             if old < parse_version("2.8.5"):
                 print("Migrating models from < 2.8.5...")
+
+                # Assistants mode is no longer selectable. Keep the legacy implementation
+                # in the codebase, but remove the mode capability from user models.
                 for model in data.values():
                     if model.has_mode("assistant"):
                         model.remove_mode("assistant")
-                updated = True
+                        updated = True
+
+                ollama_models_to_add = [
+                    "SpeakLeash/bielik-11b-v3.0-instruct:Q4_K_M",
+                    "deepseek-r1:8b",
+                    "deepseek-v3.1",
+                    "gemma4:12b",
+                    "llama4:scout",
+                    "mistral-small3.2:latest",
+                    "nemotron-3.5-lightning:30b",
+                    "qwen3.6:35b-a3b",
+                    "qwen3.6:27b-coding",
+                ]
+
+                for key in ollama_models_to_add:
+                    base_model = from_base(key)
+                    if not base_model:
+                        continue
+
+                    existing_model = None
+                    for current_model in data.values():
+                        if current_model.id == base_model.id:
+                            existing_model = current_model
+                            break
+
+                    if existing_model is None:
+                        if key not in data:
+                            data[key] = base_model
+                            updated = True
+                        continue
+
+                    for input_type in base_model.input:
+                        if input_type not in existing_model.input:
+                            existing_model.input.append(input_type)
+                            updated = True
+
+                    if base_model.tool_calls and not existing_model.tool_calls:
+                        existing_model.tool_calls = True
+                        updated = True
 
         # update file
         if updated:

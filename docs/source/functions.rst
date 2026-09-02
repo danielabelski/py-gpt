@@ -32,9 +32,9 @@ https://cookbook.openai.com/examples/how_to_call_functions_with_chat_models
 
 PyGPT offers compatibility of these functions with commands (tools) used in the application. All you need to do is define the appropriate functions using the correct JSON schema, and PyGPT will do the rest, translating such syntax on the fly into its own internal format.
 
-Local functions and tools from plugins are available in all modes, except ``Assistants``.
+Local functions and tools from plugins are available in supported chat and agent modes when the ``+ Tools`` option is enabled.
 
-To enable local functions for ``Assistants`` mode (in this mode remote tools are used by default), create a new Assistant, open the Preset edit dialog and import tools from plugins or add a new function using `+ Function` button e.g. with the following content:
+You can define an API-side function schema that maps to a local command from the ``Custom Commands`` plugin. For example:
 
 **Name:** ``send_email``
 

@@ -4,23 +4,20 @@ Models
 Built-in models
 ---------------
 
-PyGPT has a preconfigured list of models (as of 2026-08-15):
+PyGPT has a preconfigured list of models (as of 2026-09-02):
 
-- ``bielik-11b-v2.3-instruct:Q4_K_M`` (Ollama)
 - ``claude-fable-5`` (Anthropic)
 - ``claude-haiku-4-5`` (Anthropic)
 - ``claude-opus-4-5`` (Anthropic)
 - ``claude-opus-5`` (Anthropic)
 - ``claude-sonnet-4-5`` (Anthropic)
 - ``claude-sonnet-5`` (Anthropic)
-- ``codellama`` (Ollama)
 - ``computer-use-preview`` (OpenAI)
 - ``deep-research-max-preview-04-2026`` (Google)
 - ``deep-research-preview-04-2026`` (Google)
 - ``deep-research-pro-preview-12-2025`` (Google)
-- ``deepseek-r1:1.5b`` (Ollama)
-- ``deepseek-r1:14b`` (Ollama)
-- ``deepseek-r1:7b`` (Ollama)
+- ``deepseek-r1:8b`` (Ollama)
+- ``deepseek-v3.1`` (Ollama)
 - ``deepseek-v4-flash`` (DeepSeek)
 - ``deepseek-v4-pro`` (DeepSeek)
 - ``gemini-2.5-computer-use-preview-10-2025`` (Google)
@@ -37,6 +34,7 @@ PyGPT has a preconfigured list of models (as of 2026-08-15):
 - ``gemini-3.5-flash`` (Google)
 - ``gemini-3.5-flash-lite`` (Google)
 - ``gemini-3.6-flash`` (Google)
+- ``gemma4:12b`` (Ollama)
 - ``gpt-3.5-turbo`` (OpenAI)
 - ``gpt-3.5-turbo-instruct`` (OpenAI)
 - ``gpt-4`` (OpenAI)
@@ -50,8 +48,8 @@ PyGPT has a preconfigured list of models (as of 2026-08-15):
 - ``gpt-5-mini`` (OpenAI)
 - ``gpt-5-nano`` (OpenAI)
 - ``gpt-5.2`` (OpenAI)
-- ``gpt-5.6-sol`` (OpenAI)
 - ``gpt-5.6-luna`` (OpenAI)
+- ``gpt-5.6-sol`` (OpenAI)
 - ``gpt-5.6-terra`` (OpenAI)
 - ``gpt-image-1`` (OpenAI)
 - ``gpt-image-1.5`` (OpenAI)
@@ -74,13 +72,10 @@ PyGPT has a preconfigured list of models (as of 2026-08-15):
 - ``grok-imagine-video-1.5`` (xAI)
 - ``imagen-4.0-generate-001`` (Google)
 - ``llama2-uncensored`` (Ollama)
-- ``llama3.1`` (Ollama)
-- ``llama3.1:70b`` (Ollama)
-- ``llama3.3:70b`` (Ollama)
-- ``mistral`` (Ollama)
-- ``mistral-large`` (Ollama)
-- ``mistral-small3.1`` (Ollama)
+- ``llama4:scout`` (Ollama)
+- ``mistral-small3.2`` (Ollama)
 - ``nano-banana-pro-preview`` (Google)
+- ``nemotron-3.5-lightning:30b`` (Ollama)
 - ``o1`` (OpenAI)
 - ``o1-pro`` (OpenAI)
 - ``o3`` (OpenAI)
@@ -89,16 +84,15 @@ PyGPT has a preconfigured list of models (as of 2026-08-15):
 - ``o3-pro`` (OpenAI)
 - ``o4-mini`` (OpenAI)
 - ``o4-mini-deep-research`` (OpenAI)
-- ``qwen2:7b`` (Ollama)
-- ``qwen2.5-coder:7b`` (Ollama)
-- ``qwen3:8b`` (Ollama)
-- ``qwen3:30b-a3b`` (Ollama)
+- ``qwen3.6:27b-coding`` (Ollama)
+- ``qwen3.6:35b-a3b`` (Ollama)
 - ``sonar`` (Perplexity)
 - ``sonar-deep-research`` (Perplexity)
 - ``sonar-pro`` (Perplexity)
 - ``sonar-reasoning-pro`` (Perplexity)
 - ``sora-2`` (OpenAI)
 - ``sora-2-pro`` (OpenAI)
+- ``SpeakLeash/bielik-11b-v3.0-instruct:Q4_K_M`` (Ollama)
 - ``veo-3.1-fast-generate-preview`` (Google)
 - ``veo-3.1-generate-preview`` (Google)
 - ``veo-3.1-lite-generate-preview`` (Google)
@@ -162,10 +156,10 @@ when an explicit key is not supplied in the model's LlamaIndex arguments.
 How to use local or non-GPT models
 ----------------------------------
 
-Llama 3, Mistral, DeepSeek, Qwen, gpt-oss, and other local models
+Gemma 4, Qwen 3.6, Llama 4, Mistral, DeepSeek, Bielik, gpt-oss, and other local models
 ``````````````````````````````````````````````````````````````````
 
-How to use locally installed Llama 3, DeepSeek, Mistral, etc. models:
+How to use locally installed Gemma 4, Qwen 3.6, Llama 4, DeepSeek, Mistral, Bielik, and other models:
 
 1) Choose a working mode: ``Chat`` or ``Chat with Files``.
 
@@ -179,21 +173,23 @@ For example, on Linux:
 
     $ curl -fsSL https://ollama.com/install.sh | sh
 
-4) Run the model (e.g. Llama 3) locally on your machine. For example, on Linux:
+4) Run the model locally on your machine. For example, on Linux:
 
 .. code-block:: sh
 
-    $ ollama run llama3.1
+    $ ollama run gemma4:12b
 
 5) Return to PyGPT and select the correct model from models list to chat with selected model using Ollama running locally.
 
 **Example available models:**
 
-- ``llama3.1``
-- ``codellama``
-- ``mistral``
-- ``llama2-uncensored``
-- ``deepseek-r1``
+- ``gemma4:12b``
+- ``qwen3.6:35b-a3b``
+- ``qwen3.6:27b-coding``
+- ``llama4:scout``
+- ``mistral-small3.2``
+- ``deepseek-r1:8b``
+- ``SpeakLeash/bielik-11b-v3.0-instruct:Q4_K_M``
 
 etc.
 
@@ -236,7 +232,7 @@ You can use an Ollama instance for embeddings. Simply select the ``ollama`` prov
 
 Define parameters like model name and Ollama base URL in the Embeddings provider **kwargs list, e.g.:
 
-- name: ``model_name``, value: ``llama3.1``, type: ``str``
+- name: ``model_name``, value: ``gemma4:12b``, type: ``str``
 
 - name: ``base_url``, value: ``http://localhost:11434``, type: ``str``
 

@@ -348,7 +348,7 @@ You can also manualy enable legacy mode by editing config file - open the ``%WOR
 Other requirements
 ------------------
 For operation, an internet connection is needed (for API connectivity), a registered OpenAI account, 
-and an active API key that must be input into the program. Local models, such as ``Llama3`` do not require OpenAI account and any API keys.
+and an active API key that must be input into the program. Local models served through Ollama do not require an OpenAI account or external API keys.
 
 Debugging and logging
 ---------------------

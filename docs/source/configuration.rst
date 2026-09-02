@@ -197,7 +197,7 @@ The options below mirror the current application settings defined in ``settings.
 
 * ``RAG limit``: Only if the option 'Use history in RAG query' is enabled. Specify the limit of how many recent entries in the conversation will be used when generating a query for RAG. 0 = no limit. Default: 3.
 
-* ``Directory for file downloads``: Subdirectory for downloaded files, e.g. in Assistants mode, inside "data". Default: download.
+* ``Directory for file downloads``: Subdirectory for downloaded files inside ``data``. Default: download.
 
 **Context**
 
@@ -227,7 +227,6 @@ The options below mirror the current application settings defined in ``settings.
 
 * ``Show LlamaIndex sources``: If enabled, sources used will be displayed in the response (if available, it will not work in streamed chat). Default: True.
 
-* ``Show Code Interpreter output``: If enabled, output from the code interpreter in the Assistant API will be displayed in real-time (in stream mode). Default: True.
 
 * ``Show reasoning in real-time``: Show provider reasoning/thinking while the response is being generated. Default: True.
 
@@ -321,13 +320,11 @@ Remote tools are available only when supported by the selected provider/API mode
 
 **Prompts**
 
-* ``Use native API function calls``: If enabled, the application will use native API function calls instead of the internal pygpt format and the command prompts from below will not be used. Chat and Assistants modes ONLY. Default: True.
+* ``Use native API function calls``: If enabled, the application will use native API function calls instead of the internal pygpt format and the command prompts from below will not be used. Chat mode. Default: True.
 
 * ``Command execute: instruction``: Placeholders: {schema}, {extra}.
 
-* ``Command execute: extra footer (non-Assistant modes)``: Extra footer appended after the commands JSON schema in non-Assistant modes.
 
-* ``Command execute: extra footer (Assistant mode only)``: Additional instructions to separate local commands from the remote environment that is already configured in the Assistants.
 
 * ``Context: auto-summary (system prompt)``: System prompt used for automatic context summarization.
 
@@ -485,7 +482,7 @@ Remote tools are available only when supported by the selected provider/API mode
 
 * ``ID of the index for auto-indexing``: Selects the index used for automatic context indexing. Default: base.
 
-* ``Enable auto-index in modes``: Available modes: chat, llama_index, audio, research, completion, img, vision, assistant, agent_llama, agent, expert.
+* ``Enable auto-index in modes``: Available modes: chat, llama_index, audio, research, completion, img, vision, agent_llama, agent, expert.
 
 **Agents and experts**
 
@@ -609,7 +606,6 @@ If access is blocked, the plugin returns a ``Permission denied`` result that poi
 
 * ``Log Realtime sessions to console``: Enables Realtime session logging in the console. Default: False.
 
-* ``Log Assistants usage to console``: Enables Assistants API usage logging in the console. Default: False.
 
 *General*
 
@@ -633,7 +629,6 @@ You can manually edit the configuration files in this directory (this is your wo
 
    {HOME_DIR}/.config/pygpt-net/
 
-* ``assistants.json`` - stores the list of assistants.
 * ``attachments.json`` - stores the list of current attachments.
 * ``config.json`` - stores the main configuration settings.
 * ``models.json`` - stores models configurations.

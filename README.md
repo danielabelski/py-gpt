@@ -2,7 +2,7 @@
 
 [![pygpt](https://snapcraft.io/pygpt/badge.svg)](https://snapcraft.io/pygpt)
 
-Release: **2.8.4** | build: **2026-08-19** | Python: **>=3.10, <3.14**
+Release: **2.8.5** | build: **2026-09-02** | Python: **>=3.10, <3.14**
 
 > Official website: https://pygpt.net | [Documentation](https://pygpt.readthedocs.io) | [Discord](https://pygpt.net/discord)
 > 
@@ -14,9 +14,9 @@ Release: **2.8.4** | build: **2026-08-19** | Python: **>=3.10, <3.14**
 
 ## Overview
 
-**PyGPT** is an **all-in-one desktop AI assistant** supporting models from `OpenAI` (`GPT-5`, `GPT-4`, `o1`, `o3`), `Google Gemini`, `Anthropic Claude`, `xAI Grok`, `Perplexity / Sonar`, `DeepSeek`, and models available through `HuggingFace`, `LlamaIndex`, OpenAI-compatible APIs, and local `Ollama` installations such as `gpt-oss`, `Llama 3`, `Mistral`, `DeepSeek` and `Bielik`.
+**PyGPT** is an **all-in-one desktop AI assistant** supporting models from `OpenAI` (`GPT-5`, `GPT-4`, `o1`, `o3`), `Google Gemini`, `Anthropic Claude`, `xAI Grok`, `Perplexity / Sonar`, `DeepSeek`, and models available through `HuggingFace`, `LlamaIndex`, OpenAI-compatible APIs, and local `Ollama` installations such as `Gemma 4`, `Qwen 3.6`, `Llama 4`, `Mistral Small 3.2`, `DeepSeek`, `Bielik`, `Nemotron`, and `gpt-oss`.
 
-It supports chat, assistants, agents, completions, Chat with Files (via `LlamaIndex`), image and video generation, and image analysis. Models can work with files, run Python and system or custom commands, transfer files, call external APIs, and search the web with `DuckDuckGo`, `Google` and `Microsoft Bing`.
+It supports chat, agents, completions, Chat with Files (via `LlamaIndex`), image and video generation, and image analysis. Models can work with files, run Python and system or custom commands, transfer files, call external APIs, and search the web with `DuckDuckGo`, `Google` and `Microsoft Bing`.
 
 **PyGPT** also provides speech synthesis through `Microsoft Azure`, `Google`, `Eleven Labs` and `OpenAI`, plus speech recognition with `OpenAI Whisper`, `Google` and `Bing`. It stores conversation history and memory, supports reusable presets, and can be extended with built-in or custom plugins for tools, automation and external integrations.
 
@@ -38,8 +38,8 @@ You can download compiled 64-bit versions for Windows and Linux here: https://py
 
 - Desktop AI Assistant for `Linux`, `Windows` and `Mac`, written in Python.
 - Works similarly to `ChatGPT`, but locally (on a desktop computer).
-- 11 modes of operation: Chat, Chat with Files, Realtime + audio, Research (Perplexity), Completion, Image and Video generation, Assistants, Experts, Computer use, Agents and Autonomous Mode.
-- Supports multiple models like `OpenAI GPT-5`, `GPT-4`, `o1`, `o3`, `o4`, `Google Gemini`, `Anthropic Claude`, `xAI Grok`, `DeepSeek V3/R1`, `Perplexity / Sonar`, and any model accessible through `LlamaIndex` and `Ollama` such as `DeepSeek`, `gpt-oss`, `Llama 3`, `Mistral`, `Bielik`, etc.
+- 10 modes of operation: Chat, Chat with Files, Realtime + audio, Research (Perplexity), Completion, Image and Video generation, Experts, Computer use, Agents and Autonomous Mode.
+- Supports multiple models like `OpenAI GPT-5`, `GPT-4`, `o1`, `o3`, `o4`, `Google Gemini`, `Anthropic Claude`, `xAI Grok`, `DeepSeek V3/R1`, `Perplexity / Sonar`, and any model accessible through `LlamaIndex` and `Ollama` such as `Gemma 4`, `Qwen 3.6`, `Llama 4`, `Mistral Small 3.2`, `DeepSeek`, `Bielik`, `Nemotron`, `gpt-oss`, etc.
 - Chat with your own Files: integrated `LlamaIndex` support: chat with data such as: `txt`, `pdf`, `csv`, `html`, `md`, `docx`, `json`, `epub`, `xlsx`, `xml`, webpages, `Google`, `GitHub`, video/audio, images and other data types, or use conversation history as additional context provided to the model.
 - Built-in vector databases support and automated files and data embedding.
 - Image generation via models like `gpt-image`, `Imagen`, `Gemini`, and `Nano Banana`.
@@ -385,7 +385,7 @@ You can also manualy enable legacy mode by editing config file - open the `%WORK
 ## Other requirements
 
 For operation, an internet connection is needed (for API connectivity), a registered OpenAI account, 
-and an active API key that must be input into the program. Local models, such as `Llama3` do not require OpenAI account and any API keys.
+and an active API key that must be input into the program. Local models served through Ollama do not require an OpenAI account or external API keys.
 
 ## Debugging and logging
 
@@ -428,7 +428,7 @@ Here, you can add or manage API keys for any supported provider.
 
 In **PyGPT**, this mode lets you chat with models such as `GPT-5`, `GPT-4`, `o1`, `o3`, `Claude`, `Gemini`, `Grok`, `Perplexity (Sonar)`, `DeepSeek`, and many others. PyGPT can use native SDKs from supported providers, including OpenAI, Google, Anthropic, and xAI, when enabled. It can also connect to providers and local services through OpenAI-compatible APIs, including `Responses API` and `ChatCompletions API` compatible endpoints where supported.
 
-**Tip:** This mode uses the provider SDK directly. If there's no native client built into the app, models like Sonar, or Llama3 are supported in Chat mode via LlamaIndex or OpenAI-compatible API endpoints. The app automatically switches to these endpoints when using non-OpenAI models. You can enable or disable the use of the native API SDK (per provider) in `Settings -> API Keys`. If the native SDK is disabled, the OpenAI SDK will be used via the compatible ChatCompletions API endpoint.
+**Tip:** This mode uses the provider SDK directly. If there's no native client built into the app, models like Sonar or local Ollama models such as Qwen 3.6 and Gemma 4 are supported in Chat mode via LlamaIndex or OpenAI-compatible API endpoints. The app automatically switches to these endpoints when using non-OpenAI models. You can enable or disable the use of the native API SDK (per provider) in `Settings -> API Keys`. If the native SDK is disabled, the OpenAI SDK will be used via the compatible ChatCompletions API endpoint.
 
 Currently built-in native clients:
 
@@ -640,33 +640,6 @@ prompts for creating new images.
 
 Images are stored in ``img`` directory in **PyGPT** user data folder.
 
-## Assistants
-
-This mode uses the OpenAI's **Assistants API**. 
-
-**This mode is old and may be deprecated.**
-
-This mode expands on the basic chat functionality by including additional external tools like a `Code Interpreter` for executing code, `Retrieval Files` for accessing files, and custom `Functions` for enhanced interaction and integration with other APIs or services. In this mode, you can easily upload and download files. **PyGPT** streamlines file management, enabling you to quickly upload documents and manage files created by the model.
-
-Setting up new assistants is simple - a single click is all it takes, and they instantly sync with the `OpenAI API`. Importing assistants you've previously created with OpenAI into **PyGPT** is also a seamless process.
-
-In Assistant mode you are allowed to storage your files in remote vector store (per Assistant) and manage them easily from app:
-
-Please note that token usage calculation is unavailable in this mode. Nonetheless, file (attachment) 
-uploads are supported. Simply navigate to the `Files` tab to effortlessly manage files and attachments which 
-can be sent to the OpenAI API.
-
-### Vector stores (via Assistants API)
-
-Assistant mode supports the use of external vector databases offered by the OpenAI API. This feature allows you to store your files in a database and then search them using the Assistant's API. Each assistant can be linked to one vector database—if a database is linked, all files uploaded in this mode will be stored in the linked vector database. If an assistant does not have a linked vector database, a temporary database is automatically created during the file upload, which is accessible only in the current thread. Files from temporary databases are automatically deleted after 7 days.
-
-To enable the use of vector stores, enable the `Chat with Files` checkbox in the Assistant settings. This enables the `File search` tool in Assistants API.
-
-To manage external vector databases, click the DB icon next to the vector database selection list in the Assistant creation and editing window (screen below). In this management window, you can create a new vector database, edit an existing one, or import a list of all existing databases from the OpenAI server.
-
-You can define, using `Expire days`, how long files should be automatically kept in the database before deletion (as storing files on OpenAI incurs costs). If the value is set to 0, files will not be automatically deleted.
-
-The vector database in use will be displayed in the list of uploaded files, on the field to the right—if a file is stored in a database, the name of the database will be displayed there; if not, information will be shown indicating that the file is only accessible within the thread.
 
 ##  Agent (LlamaIndex) 
 
@@ -679,10 +652,6 @@ Includes built-in agents (Workflow):
 - Structured Planner (sub-tasks)
 - CodeAct (connected to Code Interpreter plugin)
 - Supervisor + worker
-
-Includes built-in agents (Legacy):
-
-- OpenAI Assistants
 
 In the future, the list of built-in agents will be expanded.
 
@@ -1073,23 +1042,21 @@ The name of the currently active profile is shown as (Profile Name) in the windo
 
 ## Built-in models
 
-PyGPT has a preconfigured list of models (as of 2026-08-15):
+PyGPT has a preconfigured list of models (as of 2026-09-02):
 
-- `bielik-11b-v2.3-instruct:Q4_K_M` (Ollama)
+```markdown
 - `claude-fable-5` (Anthropic)
 - `claude-haiku-4-5` (Anthropic)
 - `claude-opus-4-5` (Anthropic)
 - `claude-opus-5` (Anthropic)
 - `claude-sonnet-4-5` (Anthropic)
 - `claude-sonnet-5` (Anthropic)
-- `codellama` (Ollama)
 - `computer-use-preview` (OpenAI)
 - `deep-research-max-preview-04-2026` (Google)
 - `deep-research-preview-04-2026` (Google)
 - `deep-research-pro-preview-12-2025` (Google)
-- `deepseek-r1:1.5b` (Ollama)
-- `deepseek-r1:14b` (Ollama)
-- `deepseek-r1:7b` (Ollama)
+- `deepseek-r1:8b` (Ollama)
+- `deepseek-v3.1` (Ollama)
 - `deepseek-v4-flash` (DeepSeek)
 - `deepseek-v4-pro` (DeepSeek)
 - `gemini-2.5-computer-use-preview-10-2025` (Google)
@@ -1106,6 +1073,7 @@ PyGPT has a preconfigured list of models (as of 2026-08-15):
 - `gemini-3.5-flash` (Google)
 - `gemini-3.5-flash-lite` (Google)
 - `gemini-3.6-flash` (Google)
+- `gemma4:12b` (Ollama)
 - `gpt-3.5-turbo` (OpenAI)
 - `gpt-3.5-turbo-instruct` (OpenAI)
 - `gpt-4` (OpenAI)
@@ -1119,8 +1087,8 @@ PyGPT has a preconfigured list of models (as of 2026-08-15):
 - `gpt-5-mini` (OpenAI)
 - `gpt-5-nano` (OpenAI)
 - `gpt-5.2` (OpenAI)
-- `gpt-5.6-sol` (OpenAI)
 - `gpt-5.6-luna` (OpenAI)
+- `gpt-5.6-sol` (OpenAI)
 - `gpt-5.6-terra` (OpenAI)
 - `gpt-image-1` (OpenAI)
 - `gpt-image-1.5` (OpenAI)
@@ -1143,13 +1111,10 @@ PyGPT has a preconfigured list of models (as of 2026-08-15):
 - `grok-imagine-video-1.5` (xAI)
 - `imagen-4.0-generate-001` (Google)
 - `llama2-uncensored` (Ollama)
-- `llama3.1` (Ollama)
-- `llama3.1:70b` (Ollama)
-- `llama3.3:70b` (Ollama)
-- `mistral` (Ollama)
-- `mistral-large` (Ollama)
-- `mistral-small3.1` (Ollama)
+- `llama4:scout` (Ollama)
+- `mistral-small3.2` (Ollama)
 - `nano-banana-pro-preview` (Google)
+- `nemotron-3.5-lightning:30b` (Ollama)
 - `o1` (OpenAI)
 - `o1-pro` (OpenAI)
 - `o3` (OpenAI)
@@ -1158,19 +1123,19 @@ PyGPT has a preconfigured list of models (as of 2026-08-15):
 - `o3-pro` (OpenAI)
 - `o4-mini` (OpenAI)
 - `o4-mini-deep-research` (OpenAI)
-- `qwen2:7b` (Ollama)
-- `qwen2.5-coder:7b` (Ollama)
-- `qwen3:8b` (Ollama)
-- `qwen3:30b-a3b` (Ollama)
+- `qwen3.6:27b-coding` (Ollama)
+- `qwen3.6:35b-a3b` (Ollama)
 - `sonar` (Perplexity)
 - `sonar-deep-research` (Perplexity)
 - `sonar-pro` (Perplexity)
 - `sonar-reasoning-pro` (Perplexity)
 - `sora-2` (OpenAI)
 - `sora-2-pro` (OpenAI)
+- `SpeakLeash/bielik-11b-v3.0-instruct:Q4_K_M` (Ollama)
 - `veo-3.1-fast-generate-preview` (Google)
 - `veo-3.1-generate-preview` (Google)
 - `veo-3.1-lite-generate-preview` (Google)
+```
 
 All models are specified in the configuration file `models.json`, which you can customize. 
 This file is located in your working directory. You can add new models provided directly by `OpenAI API` (or compatible), `Google Gen AI API`, `Anthropic API`, `xAI API`, and those supported by `LlamaIndex` or `Ollama` to this file. Configuration for LlamaIndex in placed in `llama_index` key.
@@ -1206,9 +1171,9 @@ There is built-in support for those LLM providers:
 
 ## How to use local or non-GPT models
 
-### Llama 3, Mistral, DeepSeek, Qwen, gpt-oss, and other local models
+### Gemma 4, Qwen 3.6, Llama 4, Mistral, DeepSeek, Bielik, gpt-oss, and other local models
 
-How to use locally installed Llama 3, DeepSeek, Mistral, etc. models:
+How to use locally installed Gemma 4, Qwen 3.6, Llama 4, DeepSeek, Mistral, Bielik, and other models:
 
 1) Choose a working mode: `Chat` or `Chat with Files`.
 
@@ -1220,19 +1185,21 @@ For example, on Linux:
 
 ```curl -fsSL https://ollama.com/install.sh | sh```
 
-4) Run the model (e.g. Llama 3) locally on your machine. For example, on Linux:
+4) Run the model locally on your machine. For example, on Linux:
 
-```ollama run llama3.1```
+```ollama run gemma4:12b```
 
 5) Return to PyGPT and select the correct model from models list to chat with selected model using Ollama running locally.
 
 **Example available models**
 
-- `llama3.1`
-- `codellama`
-- `mistral`
-- `llama2-uncensored`
-- `deepseek-r1`
+- `gemma4:12b`
+- `qwen3.6:35b-a3b`
+- `qwen3.6:27b-coding`
+- `llama4:scout`
+- `mistral-small3.2`
+- `deepseek-r1:8b`
+- `SpeakLeash/bielik-11b-v3.0-instruct:Q4_K_M`
 
 etc.
 
@@ -1274,7 +1241,7 @@ You can use an Ollama instance for embeddings. Simply select the `ollama` provid
 
 Define parameters like model name and Ollama base URL in the Embeddings provider **kwargs list, e.g.:
 
-- name: `model_name`, value: `llama3.1`, type: `str`
+- name: `model_name`, value: `gemma4:12b`, type: `str`
 
 - name: `base_url`, value: `http://localhost:11434`, type: `str`
 
@@ -2431,7 +2398,7 @@ The options below mirror the current application settings defined in `settings.j
 
 - `RAG limit`: Only if the option 'Use history in RAG query' is enabled. Specify the limit of how many recent entries in the conversation will be used when generating a query for RAG. 0 = no limit. Default: 5.
 
-- `Directory for file downloads`: Subdirectory for downloaded files, e.g. in Assistants mode, inside "data". Default: download.
+- `Directory for file downloads`: Subdirectory for downloaded files inside `data`. Default: download.
 
 **Context**
 
@@ -2461,7 +2428,6 @@ The options below mirror the current application settings defined in `settings.j
 
 - `Show LlamaIndex sources`: If enabled, sources used will be displayed in the response (if available, it will not work in streamed chat). Default: True.
 
-- `Show Code Interpreter output`: If enabled, output from the code interpreter in the Assistant API will be displayed in real-time (in stream mode). Default: True.
 
 - `Show reasoning in real-time`: Show provider reasoning/thinking while the response is being generated. Default: True.
 
@@ -2555,13 +2521,11 @@ Remote tools are available only when supported by the selected provider/API mode
 
 **Prompts**
 
-- `Use native API function calls`: If enabled, the application will use native API function calls instead of the internal pygpt format and the command prompts from below will not be used. Chat and Assistants modes ONLY. Default: True.
+- `Use native API function calls`: If enabled, the application will use native API function calls instead of the internal pygpt format and the command prompts from below will not be used. Chat mode. Default: True.
 
 - `Command execute: instruction`: Placeholders: {schema}, {extra}.
 
-- `Command execute: extra footer (non-Assistant modes)`: Extra footer appended after the commands JSON schema in non-Assistant modes.
 
-- `Command execute: extra footer (Assistant mode only)`: Additional instructions to separate local commands from the remote environment that is already configured in the Assistants.
 
 - `Context: auto-summary (system prompt)`: System prompt used for automatic context summarization.
 
@@ -2719,7 +2683,7 @@ Remote tools are available only when supported by the selected provider/API mode
 
 - `ID of the index for auto-indexing`: Selects the index used for automatic context indexing. Default: base.
 
-- `Enable auto-index in modes`: Available modes: chat, llama_index, audio, research, completion, img, vision, assistant, agent_llama, agent, expert.
+- `Enable auto-index in modes`: Available modes: chat, llama_index, audio, research, completion, img, vision, agent_llama, agent, expert.
 
 **Agents and experts**
 
@@ -2841,7 +2805,6 @@ If access is blocked, the plugin returns a `Permission denied` result that point
 
 - `Log Realtime sessions to console`: Enables Realtime session logging in the console. Default: False.
 
-- `Log Assistants usage to console`: Enables Assistants API usage logging in the console. Default: False.
 
 *General*
 
@@ -2864,7 +2827,6 @@ You can manually edit the configuration files in this directory (this is your wo
 {HOME_DIR}/.config/pygpt-net/
 ```
 
-- `assistants.json` - stores the list of assistants.
 - `attachments.json` - stores the list of current attachments.
 - `config.json` - stores the main configuration settings.
 - `models.json` - stores models configurations.

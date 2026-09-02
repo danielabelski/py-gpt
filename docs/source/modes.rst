@@ -10,7 +10,7 @@ In **PyGPT**, this mode lets you chat with models such as ``GPT-5``, ``GPT-4``, 
 
 
 .. note::
-   This mode uses the provider SDK directly. If there's no native client built into the app, models like Sonar, or Llama3 are supported in Chat mode via LlamaIndex or OpenAI-compatible API endpoints. The app automatically switches to these endpoints when using non-OpenAI models. You can enable or disable the use of the native API SDK (per provider) in ``Settings -> API Keys``. If the native SDK is disabled, the OpenAI SDK will be used via the compatible ChatCompletions API endpoint.
+   This mode uses the provider SDK directly. If there's no native client built into the app, models like Sonar or local Ollama models such as Qwen 3.6 and Gemma 4 are supported in Chat mode via LlamaIndex or OpenAI-compatible API endpoints. The app automatically switches to these endpoints when using non-OpenAI models. You can enable or disable the use of the native API SDK (per provider) in ``Settings -> API Keys``. If the native SDK is disabled, the OpenAI SDK will be used via the compatible ChatCompletions API endpoint.
 
    Currently built-in native clients:
 
@@ -230,29 +230,6 @@ prompts for creating new images.
 Images are stored in ``img`` directory in PyGPT's user data folder.
 
 
-Assistants
-----------
-This mode uses the OpenAI's **Assistants API**.
-
-This mode expands on the basic chat functionality by including additional external tools like a ``Code Interpreter`` for executing code, ``Retrieval Files`` for accessing files, and custom ``Functions`` for enhanced interaction and integration with other APIs or services. In this mode, you can easily upload and download files. **PyGPT** streamlines file management, enabling you to quickly upload documents and manage files created by the model.
-
-Setting up new assistants is simple - a single click is all it takes, and they instantly sync with the ``OpenAI API``. Importing assistants you've previously created with OpenAI into **PyGPT** is also a seamless process.
-
-In Assistant mode you can store files in a remote vector store associated with an Assistant and manage them from the app:
-
-**Vector stores (via Assistants API)**
-
-Assistant mode supports the use of external vector databases offered by the OpenAI API. This feature allows you to store your files in a database and then search them using the Assistant's API. Each assistant can be linked to one vector database—if a database is linked, all files uploaded in this mode will be stored in the linked vector database. If an assistant does not have a linked vector database, a temporary database is automatically created during the file upload, which is accessible only in the current thread. Files from temporary databases are automatically deleted after 7 days.
-
-To enable the use of vector stores, enable the ``Chat with Files`` checkbox in the Assistant settings. This enables the ``File search`` tool in Assistants API.
-
-To manage external vector databases, click the DB icon next to the vector database selection list in the Assistant creation and editing window (screen below). In this management window, you can create a new vector database, edit an existing one, or import a list of all existing databases from the OpenAI server:
-
-You can define, using ``Expire days``, how long files should be automatically kept in the database before deletion (as storing files on OpenAI incurs costs). If the value is set to 0, files will not be automatically deleted.
-
-
-The vector database in use will be displayed in the list of uploaded files, on the field to the right—if a file is stored in a database, the name of the database will be displayed there; if not, information will be shown indicating that the file is only accessible within the thread.
-
 
 Agent (LlamaIndex) 
 -------------------
@@ -266,10 +243,6 @@ Includes built-in agents (Workflow):
 * Structured Planner (sub-tasks)
 * CodeAct (connected to Code Interpreter plugin)
 * Supervisor + worker
-
-Includes built-in agents (Legacy):
-
-* OpenAI Assistants
 
 In the future, the list of built-in agents will be expanded.
 
