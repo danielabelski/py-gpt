@@ -6,12 +6,13 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.08.24 23:00:00                  #
+# Updated Date: 2026.09.02 19:30:00                  #
 # ================================================== #
 
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QSystemTrayIcon, QMenu
 
+from pygpt_net.ui.widget.screenshot import ScreenRegionSelector
 from pygpt_net.utils import trans
 
 
@@ -25,6 +26,7 @@ class Tray:
         self.window = window
         self.is_tray = False
         self.icon = None
+        self.region_selector = None
 
     def set_icon(self, state: str):
         """
@@ -103,10 +105,20 @@ class Tray:
         if w.controller.notepad.get_num_notepads() == 0:
             self.hide_notepad_menu()
 
-        action = QAction(trans("menu.tray.screenshot"), w)
-        action.setIcon(QIcon(":/icons/computer.svg"))
-        tray_menu['screenshot'] = action
-        tray_menu['screenshot'].triggered.connect(self.make_screenshot)
+        screenshot_menu = QMenu(trans("menu.tray.screenshot"), w)
+        screenshot_menu.setIcon(QIcon(":/icons/computer.svg"))
+        tray_menu['screenshot_menu'] = screenshot_menu
+        tray_menu['screenshot'] = screenshot_menu.menuAction()
+
+        action = QAction(QIcon(":/icons/fullscreen.svg"), trans("menu.tray.screenshot.full_screen"), w)
+        tray_menu['screenshot_full_screen'] = action
+        tray_menu['screenshot_full_screen'].triggered.connect(self.make_screenshot)
+        screenshot_menu.addAction(action)
+
+        action = QAction(QIcon(":/icons/crop.svg"), trans("menu.tray.screenshot.select_region"), w)
+        tray_menu['screenshot_select_region'] = action
+        tray_menu['screenshot_select_region'].triggered.connect(self.select_screenshot_region)
+        screenshot_menu.addAction(action)
 
         action = QAction(trans("menu.file.exit"), w)
         action.setIcon(QIcon(":/icons/logout.svg"))
@@ -118,7 +130,7 @@ class Tray:
         menu.addAction(tray_menu['new'])
         menu.addAction(tray_menu['scheduled'])
         menu.addAction(tray_menu['open_notepad'])
-        menu.addAction(tray_menu['screenshot'])
+        menu.addMenu(tray_menu['screenshot_menu'])
         menu.addAction(tray_menu['update'])
         menu.addAction(tray_menu['exit'])
         self.icon.activated.connect(w.tray_toggle)
@@ -141,10 +153,43 @@ class Tray:
         self.window.controller.plugins.settings.open_plugin('crontab')
 
     def make_screenshot(self):
-        """Make screenshot"""
+        """Make a full-screen screenshot."""
         self.window.controller.painter.capture.screenshot()
         self.window.restore()
         self.window.controller.chat.common.focus_input()
+
+    def select_screenshot_region(self):
+        """Open a fullscreen overlay and let the user select a screenshot region."""
+        if self.region_selector is not None:
+            self.region_selector.close()
+            self.region_selector = None
+
+        selector = ScreenRegionSelector()
+        self.region_selector = selector
+        screen_geometry = selector.screen_geometry
+        screen_index = selector.screen_index
+
+        selector.region_selected.connect(
+            lambda region, geometry=screen_geometry, index=screen_index:
+            self.make_region_screenshot(region, geometry, index)
+        )
+        selector.cancelled.connect(self.cancel_region_screenshot)
+        selector.show_selector()
+
+    def make_region_screenshot(self, region, screen_geometry, screen_index: int = 0):
+        """Capture the selected region, then restore the application."""
+        self.region_selector = None
+        self.window.controller.painter.capture.screenshot_region(
+            region,
+            screen_geometry,
+            screen_index=screen_index,
+        )
+        self.window.restore()
+        self.window.controller.chat.common.focus_input()
+
+    def cancel_region_screenshot(self):
+        """Clear region selector state after cancellation."""
+        self.region_selector = None
 
     def check_updates(self):
         """Check for updates"""

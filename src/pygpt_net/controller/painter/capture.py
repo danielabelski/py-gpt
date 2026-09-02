@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.01.02 02:00:00                  #
+# Updated Date: 2026.09.02 19:30:00                  #
 # ================================================== #
 
 import datetime
@@ -19,6 +19,7 @@ import mss.tools
 from PIL import Image, ImageDraw
 from pynput.mouse import Controller
 
+from PySide6.QtCore import QRect
 from PySide6.QtGui import QImage
 
 from pygpt_net.core.events import KernelEvent
@@ -132,6 +133,89 @@ class Capture:
         except Exception as e:
             print("Screenshot capture exception", e)
             self.window.core.debug.log(e)
+
+    def screenshot_region(
+            self,
+            region: QRect,
+            screen_geometry: QRect,
+            screen_index: int = 0,
+            silent: bool = False
+    ) -> Optional[Union[str, bool]]:
+        """
+        Make a screenshot of a selected screen region and append it to attachments.
+
+        :param region: selected region in global Qt coordinates
+        :param screen_geometry: target QScreen geometry in global Qt coordinates
+        :param screen_index: target QScreen index (0-based)
+        :param silent: Silent mode
+        :return: Path to screenshot or False if failed
+        """
+        if region is None or screen_geometry is None:
+            return False
+        if region.width() <= 1 or region.height() <= 1:
+            return False
+        if screen_geometry.width() <= 0 or screen_geometry.height() <= 0:
+            return False
+
+        if not silent:
+            # switch to vision mode if needed
+            self.window.controller.chat.vision.switch_to_vision()
+
+            # clear attachments before capture if needed
+            if self.window.controller.attachment.is_capture_clear():
+                self.window.controller.attachment.clear(True, auto=True)
+
+        try:
+            now = datetime.datetime.now()
+            dt = now.strftime("%Y-%m-%d_%H-%M-%S")
+            name = 'cap-' + dt
+            path = os.path.join(self.window.controller.painter.common.get_capture_dir(), name + '.png')
+
+            with mss.mss(with_cursor=False) as sct:
+                monitors = sct.monitors[1:]
+                if not monitors:
+                    return False
+
+                monitor_idx = max(0, min(int(screen_index), len(monitors) - 1))
+                monitor = monitors[monitor_idx]
+
+                scale_x = monitor['width'] / float(screen_geometry.width())
+                scale_y = monitor['height'] / float(screen_geometry.height())
+
+                local_left = max(0, region.x() - screen_geometry.x())
+                local_top = max(0, region.y() - screen_geometry.y())
+                local_right = min(screen_geometry.width(), local_left + region.width())
+                local_bottom = min(screen_geometry.height(), local_top + region.height())
+
+                left = monitor['left'] + int(round(local_left * scale_x))
+                top = monitor['top'] + int(round(local_top * scale_y))
+                right = monitor['left'] + int(round(local_right * scale_x))
+                bottom = monitor['top'] + int(round(local_bottom * scale_y))
+
+                capture_region = {
+                    'left': left,
+                    'top': top,
+                    'width': max(1, right - left),
+                    'height': max(1, bottom - top),
+                }
+                sct_img = sct.grab(capture_region)
+                mss.tools.to_png(sct_img.rgb, sct_img.size, output=path)
+
+            self.attach(name, path, 'screenshot', silent=silent)
+
+            if not silent:
+                self.window.controller.painter.open(path)
+                dt_info = now.strftime("%Y-%m-%d %H:%M:%S")
+                event = KernelEvent(KernelEvent.STATUS, {
+                    'status': trans("painter.capture.manual.captured.success") + ' ' + dt_info,
+                })
+                self.window.dispatch(event)
+            return path
+
+        except Exception as e:
+            print("Screenshot region capture exception", e)
+            self.window.core.debug.log(e)
+            return False
 
     def screenshot_playwright(
             self,
