@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.08.21 07:00:00                  #
+# Updated Date: 2026.09.02 18:00:00                  #
 # ================================================== #
 
 import os
@@ -149,12 +149,14 @@ class Context:
     def add_user(
             self,
             query: str,
-            attachments: Dict[str, AttachmentItem] = None) -> ChatMessage:
+            attachments: Dict[str, AttachmentItem] = None,
+            allow_images: bool = True) -> ChatMessage:
         """
         Add user message
 
         :param query: input query
         :param attachments: attachments
+        :param allow_images: whether image URLs/attachments can be sent to the model
         :return: ChatMessage object
         """
         blocks = [TextBlock(text=query)]
@@ -162,8 +164,8 @@ class Context:
         self.attachments = {}  # reset attachments, only current prompt
         self.urls = []
 
-        # extract URLs from prompt
-        urls = self.extract_urls(query)
+        # extract image URLs from prompt only for image-capable models
+        urls = self.extract_urls(query) if allow_images else []
         if len(urls) > 0:
             for url in urls:
                 blocks.append(
@@ -171,8 +173,8 @@ class Context:
                 )
                 self.urls.append(url)
 
-        # if attachments are provided, add them to blocks
-        if attachments is not None and len(attachments) > 0:
+        # if attachments are provided, add image blocks only for image-capable models
+        if allow_images and attachments is not None and len(attachments) > 0:
             for id in attachments:
                 attachment = attachments[id]
                 if os.path.exists(attachment.path):

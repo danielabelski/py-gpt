@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.08.21 07:00:00                  #
+# Updated Date: 2026.09.02 18:00:00                  #
 # ================================================== #
 
 import json
@@ -371,7 +371,11 @@ class Chat:
                     )
                 else:
                     history.insert(0, self.context.add_system(system_prompt))
-                    history.append(self.context.add_user(query, attachments=context.attachments))
+                    history.append(self.context.add_user(
+                        query,
+                        attachments=context.attachments,
+                        allow_images=model.is_image_input(),
+                    ))
                     if stream: # TOOLS + STREAM + NO INDEX
                         # IMPORTANT: stream chat with tools not supported by all providers
                         if allow_native_tool_calls and hasattr(llm, "stream_chat_with_tools"):
@@ -399,7 +403,11 @@ class Chat:
             else:
                 # NO TOOLS + NO INDEX
                 history.insert(0, self.context.add_system(system_prompt))
-                history.append(self.context.add_user(query, attachments=context.attachments))
+                history.append(self.context.add_user(
+                    query,
+                    attachments=context.attachments,
+                    allow_images=model.is_image_input(),
+                ))
                 if stream:
                     response = llm.stream_chat(
                         messages=history,

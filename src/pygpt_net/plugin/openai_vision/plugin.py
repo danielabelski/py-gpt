@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.18 17:30:00                  #
+# Updated Date: 2026.09.02 18:00:00                  #
 # ================================================== #
 
 import os
@@ -18,6 +18,7 @@ from pygpt_net.core.types import (
     MODE_AGENT_LLAMA,
     MODE_AGENT_OPENAI,
     MODE_CHAT,
+    MODE_LLAMA_INDEX,
 )
 from pygpt_net.plugin.base.plugin import BasePlugin
 from pygpt_net.item.ctx import CtxItem
@@ -374,8 +375,20 @@ class Plugin(BasePlugin):
         if mode in self.disabled_mode_switch:
             return mode
 
+        # Ollama is executed through the LlamaIndex bridge, not the API Chat bridge.
+        # If the selected local model declares image input support, keep that route:
+        # core.idx.context will attach ImageBlock data and Ollama converts it to its
+        # native `images` message field.
+        model_id = self.window.core.config.get('model')
+        model = self.window.core.models.get(model_id) if model_id else None
+        if (mode == MODE_LLAMA_INDEX
+                and model is not None
+                and model.is_ollama()
+                and model.is_image_input()):
+            return mode
+
         # The legacy Vision mode is deprecated. Route inline image turns
-        # through Chat and let MODEL_BEFORE select an image-capable model.
+        # through Chat and let MODEL_BEFORE select an image-capable API model.
         return MODE_CHAT
 
     def on_agent_prompt(self, prompt: str, silent: bool = False) -> str:
