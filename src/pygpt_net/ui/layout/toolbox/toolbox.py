@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.12 14:30:00                  #
+# Updated Date: 2026.09.03 14:25:00                  #
 # ================================================== #
 
 from PySide6.QtGui import Qt
@@ -25,6 +25,8 @@ from .prompt import Prompt
 from .footer import Footer
 
 class ToolboxMain:
+    MIN_WIDTH = 256
+
     def __init__(self, window=None):
         """
         Toolbox UI
@@ -67,11 +69,18 @@ class ToolboxMain:
         layout.addWidget(self.assistants.setup(), 1)  # assistants
         layout.setContentsMargins(0, 0, 0, 0)
 
-        toolbox_mode.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # The toolbox must remain horizontally shrinkable. Some mode-specific
+        # controls have wide size hints (or are only visible in selected modes),
+        # so using the default horizontal policy here would let those hints raise
+        # the effective minimum width of the whole right pane.
+        toolbox_mode.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Expanding)
+        toolbox_mode.setMinimumWidth(0)
         nodes['toolbox.mode'] = toolbox_mode
         nodes['toolbox.mode.layout'] = layout
 
         bottom_widget = QWidget(self.window)
+        bottom_widget.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Expanding)
+        bottom_widget.setMinimumWidth(0)
         bottom = QVBoxLayout(bottom_widget)
         bottom.addWidget(self.prompt.setup())
         bottom.addWidget(self.footer.setup())
@@ -79,6 +88,12 @@ class ToolboxMain:
 
         # rows
         splitter = QSplitter(Qt.Vertical, self.window)
+        # Keep one stable minimum width regardless of which mode-specific
+        # widgets are currently visible. QSizePolicy.Ignored makes the parent
+        # splitter ignore changing child size hints while the explicit minimum
+        # below still prevents collapsing the toolbox too far.
+        splitter.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Expanding)
+        splitter.setMinimumWidth(self.MIN_WIDTH)
         splitter.addWidget(toolbox_mode)  # mode/model
         splitter.addWidget(bottom_widget)  # system prompt, footer (names, temp, logo, etc.)
         ui.splitters['toolbox'] = splitter

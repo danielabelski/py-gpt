@@ -6,10 +6,10 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.16 18:40:00
+# Updated Date: 2026.09.03 14:25:00                  #
 # ================================================== #
 
-from PySide6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout
+from PySide6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QSizePolicy
 
 from pygpt_net.ui.widget.option.combo import OptionCombo
 from pygpt_net.ui.widget.option.input import OptionInput
@@ -45,6 +45,8 @@ class Image:
         conf_global = ui.config['global']
 
         container = QWidget(parent=self.window)
+        container.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        container.setMinimumWidth(0)
         ui.nodes['image.options'] = container
 
         conf_global['img_variants'] = OptionInput(self.window, 'global', 'img_variants', option)
@@ -52,7 +54,11 @@ class Image:
 
         option_resolutions = self.window.core.image.get_resolution_option()
         conf_global['img_resolution'] = OptionCombo(self.window, 'global', 'img_resolution', option_resolutions)
-        conf_global['img_resolution'].setMinimumWidth(160)
+        # Keep media options shrinkable inside the fixed-minimum toolbox.
+        conf_global['img_resolution'].setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        conf_global['img_resolution'].setMinimumWidth(0)
+        conf_global['img_variants'].setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        conf_global['img_variants'].setMinimumWidth(0)
 
         conf_global['img.remix'] = ToggleLabel(trans("img.remix"), parent=self.window)
         conf_global['img.remix'].box.setToolTip(trans("img.remix.tooltip"))

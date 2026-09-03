@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.01.03 17:00:00                  #
+# Updated Date: 2026.09.03 14:25:00                  #
 # ================================================== #
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon
@@ -37,6 +37,8 @@ class Model:
         :return: QWidget7
         """
         widget = QWidget()
+        widget.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        widget.setMinimumWidth(0)
         widget.setLayout(self.setup_list())
         return widget
 
@@ -53,8 +55,10 @@ class Model:
         nodes[self.label_key] = label
 
         combo = ModelCombo(self.window, self.id)
-        # Ensure combo takes maximum horizontal space
-        combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        # Fill available space, but do not let model names raise the toolbox
+        # minimum width when the model list changes with the selected mode.
+        combo.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        combo.setMinimumWidth(0)
         nodes[self.id] = combo
 
         nodes['prompt.model.settings'] = QPushButton(self._settings_icon, "")

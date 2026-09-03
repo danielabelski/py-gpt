@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.01.03 17:00:00                  #
+# Updated Date: 2026.09.03 14:25:00                  #
 # ================================================== #
 
 from PySide6.QtCore import Qt, QSize
@@ -110,7 +110,8 @@ class Indexes:
             'current_index',
             option,
         )
-        nodes['indexes.select'].setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        nodes['indexes.select'].setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        nodes['indexes.select'].setMinimumWidth(0)
 
         option = {
             "name": "llama.idx.mode",
@@ -125,7 +126,8 @@ class Indexes:
             'llama.idx.mode',
             option,
         )
-        nodes['llama_index.mode.select'].setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        nodes['llama_index.mode.select'].setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        nodes['llama_index.mode.select'].setMinimumWidth(0)
 
         nodes['indexes.new'] = QPushButton(self._settings_icon, "")
         # Configure compact, borderless settings button for options row
@@ -151,7 +153,8 @@ class Indexes:
         idx_widget = QWidget()
         idx_widget.setLayout(idx_layout)
         idx_widget.setMinimumHeight(55)
-        idx_widget.setMinimumWidth(275)
+        idx_widget.setMinimumWidth(0)
+        idx_widget.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
 
         mode_layout = QHBoxLayout()
         mode_layout.addWidget(nodes['llama_index.mode.label'])
@@ -161,7 +164,8 @@ class Indexes:
         mode_widget = QWidget()
         mode_widget.setLayout(mode_layout)
         mode_widget.setMinimumHeight(55)
-        mode_widget.setMinimumWidth(275)
+        mode_widget.setMinimumWidth(0)
+        mode_widget.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
 
         rows = QVBoxLayout()
         rows.addWidget(idx_widget)
