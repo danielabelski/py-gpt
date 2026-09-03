@@ -1,7 +1,7 @@
 {
   "__meta__": {
-    "version": "2.8.6",
-    "app.version": "2.8.6",
+    "version": "2.8.7",
+    "app.version": "2.8.7",
     "updated_at": "2026-09-03T18:00:00"
   },
   "access.audio.event.speech": false,
@@ -366,6 +366,7 @@
   "painter.brush.color": "Black",
   "painter.brush.mode": "brush",
   "painter.brush.size": 3,
+  "painter.draw.mode": "free",
   "painter.canvas.size": "1280x720",
   "painter.zoom": 100,
   "personalize.about": "",

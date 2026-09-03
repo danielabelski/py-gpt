@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.12.28 14:30:00                  #
+# Updated Date: 2026.09.03 20:31:00
 # ================================================== #
 
 import datetime
@@ -16,10 +16,16 @@ import math
 from collections import deque
 
 from PySide6.QtCore import Qt, QPoint, QPointF, QRect, QSize, QSaveFile, QIODevice, QTimer, Signal
-from PySide6.QtGui import QImage, QPainter, QPen, QAction, QIcon, QColor, QCursor
+from PySide6.QtGui import QImage, QPainter, QPen, QAction, QActionGroup, QIcon, QColor, QCursor
 from PySide6.QtWidgets import QMenu, QWidget, QFileDialog, QMessageBox, QApplication, QAbstractScrollArea
 
 from pygpt_net.core.tabs.tab import Tab
+from pygpt_net.ui.widget.draw.modes import (
+    DrawMode,
+    DRAW_MODE_ORDER,
+    DRAW_MODE_TRANSLATION_KEYS,
+    create_draw_mode_handlers,
+)
 from pygpt_net.utils import trans
 
 
@@ -63,8 +69,12 @@ class PainterWidget(QWidget):
         self._mouseDown = False
         self.brushSize = 3
         self.brushColor = Qt.black
-        self._mode = "brush"  # "brush" or "erase"
-        self.lastPointCanvas = QPoint()
+        self._mode = "brush"  # paint tool: "brush" or "erase"
+        self._drawMode = DrawMode.FREE
+        self._drawHandlers = create_draw_mode_handlers()
+        self._activeDrawHandler = None
+        self._drawTransactionSnapshot = None
+        self.lastPointCanvas = QPoint()  # kept for API compatibility
         self._pen = QPen(self.brushColor, self.brushSize, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
 
         # Crop tool state (selection kept in canvas coordinates)
@@ -140,11 +150,29 @@ class PainterWidget(QWidget):
         self._act_fit = QAction(QIcon(":/icons/fit.svg"), trans('painter.btn.fit') if trans('painter.btn.fit') else "Fit", self)
         self._act_fit.triggered.connect(self.action_fit)
 
+        # Drawing mode submenu
+        self._draw_menu = QMenu(trans('painter.draw'), self)
+        self._draw_action_group = QActionGroup(self)
+        self._draw_action_group.setExclusive(True)
+        self._draw_actions = {}
+        for draw_mode in DRAW_MODE_ORDER:
+            action = QAction(trans(DRAW_MODE_TRANSLATION_KEYS[draw_mode]), self)
+            action.setCheckable(True)
+            action.setData(draw_mode.value)
+            action.setChecked(draw_mode == self._drawMode)
+            action.triggered.connect(
+                lambda checked=False, mode=draw_mode: self._on_draw_mode_action(mode, checked)
+            )
+            self._draw_action_group.addAction(action)
+            self._draw_menu.addAction(action)
+            self._draw_actions[draw_mode] = action
+
         # Context menu
         self._ctx_menu = QMenu(self)
         self._ctx_menu.addAction(self._act_undo)
         self._ctx_menu.addAction(self._act_redo)
         self._ctx_menu.addSeparator()
+        self._ctx_menu.addMenu(self._draw_menu)
         self._ctx_menu.addAction(self._act_crop)
         self._ctx_menu.addAction(self._act_fit)
         self._ctx_menu.addSeparator()
@@ -795,6 +823,7 @@ class PainterWidget(QWidget):
 
         # Keep Fit enabled; the action validates availability when executed
         self._act_fit.setEnabled(True)
+        self.sync_draw_mode_actions()
 
         self._ctx_menu.exec(event.globalPos())
 
@@ -1024,6 +1053,87 @@ class PainterWidget(QWidget):
             return False
 
         return f.commit()
+
+    # ---------- Drawing modes / transactions ----------
+
+    def _on_draw_mode_action(self, mode: DrawMode, checked: bool = True):
+        """Handle a drawing mode selected from the Painter context menu."""
+        if not checked:
+            return
+        common = getattr(getattr(self.window, "controller", None), "painter", None)
+        common = getattr(common, "common", None)
+        if common is not None:
+            common.change_draw_mode(mode.value)
+        else:
+            self.set_draw_mode(mode)
+
+    def get_draw_mode(self) -> DrawMode:
+        """Return the currently selected drawing mode."""
+        return self._drawMode
+
+    def set_draw_mode(self, mode):
+        """Set the current drawing mode using a stable DrawMode ID."""
+        mode = DrawMode.from_value(mode)
+        if self.drawing:
+            self.cancel_active_drawing()
+        self._drawMode = mode
+        self.sync_draw_mode_actions()
+        self.update()
+
+    def sync_draw_mode_actions(self):
+        """Keep context-menu checkmarks synchronized with the active mode."""
+        for mode, action in self._draw_actions.items():
+            action.blockSignals(True)
+            action.setChecked(mode == self._drawMode)
+            action.blockSignals(False)
+
+    def retranslate_draw_modes(self):
+        """Refresh Painter drawing mode labels after a runtime language change."""
+        self._draw_menu.setTitle(trans('painter.draw'))
+        for mode, action in self._draw_actions.items():
+            action.setText(trans(DRAW_MODE_TRANSLATION_KEYS[mode]))
+
+    def _begin_draw_transaction(self):
+        """Capture the pre-gesture state; the snapshot enters UNDO only on commit."""
+        self._ensure_layers()
+        self._ensure_composited_image()
+        self._drawTransactionSnapshot = self._snapshot_state()
+
+    def _commit_draw_transaction(self):
+        """Commit the current drawing gesture as one UNDO step."""
+        if self._drawTransactionSnapshot is not None:
+            self.undoStack.append(self._drawTransactionSnapshot)
+            self.redoStack.clear()
+        self._drawTransactionSnapshot = None
+        self.drawing = False
+
+    def _cancel_draw_transaction(self):
+        """Restore the pre-gesture state without creating an UNDO/REDO entry."""
+        state = self._drawTransactionSnapshot
+        self._drawTransactionSnapshot = None
+        if state is not None:
+            self._apply_state(state)
+        self.drawing = False
+
+    def _effective_draw_handler(self):
+        """Eraser always behaves freehand; paint uses the selected drawing mode."""
+        mode = DrawMode.FREE if self._mode == "erase" else self._drawMode
+        return self._drawHandlers[mode]
+
+    def cancel_active_drawing(self):
+        """Cancel an in-progress drawing gesture (used by ESC and mode changes)."""
+        handler = self._activeDrawHandler
+        if handler is not None and handler.active:
+            handler.cancel(self)
+        elif self._drawTransactionSnapshot is not None:
+            self._cancel_draw_transaction()
+        self._activeDrawHandler = None
+        self._mouseDown = False
+        try:
+            self.releaseMouse()
+        except Exception:
+            pass
+        self.update()
 
     # ---------- Brush/eraser ----------
 
@@ -1311,13 +1421,22 @@ class PainterWidget(QWidget):
 
     def wheelEvent(self, event):
         """
-        CTRL + wheel => zoom. Regular scrolling falls back to default behavior.
+        While LMB drawing: wheel changes brush/shape size in real time.
+        Otherwise CTRL + wheel controls zoom.
 
         :param event: Event
         """
+        delta = event.angleDelta().y()
+        if self._mouseDown and self.drawing and delta != 0:
+            common = getattr(getattr(self.window.controller, "painter", None), "common", None)
+            if common is not None:
+                common.step_brush_size(1 if delta > 0 else -1)
+            self.update()
+            event.accept()
+            return
+
         mods = event.modifiers()
         if mods & Qt.ControlModifier:
-            delta = event.angleDelta().y()
             if delta > 0:
                 self.zoom_in_step()
             elif delta < 0:
@@ -1356,6 +1475,7 @@ class PainterWidget(QWidget):
 
         if event.button() == Qt.LeftButton:
             self._mouseDown = True
+            self.setFocus(Qt.MouseFocusReason)
             if self.cropping:
                 self.saveForUndo()
                 self._selecting = True
@@ -1367,26 +1487,16 @@ class PainterWidget(QWidget):
                 return
 
             self._ensure_layers()
-            self.drawing = True
-            self.lastPointCanvas = self._to_canvas_point(event.position())
-            self.saveForUndo()
+            point = self._to_canvas_point(event.position())
+            handler = self._effective_draw_handler()
+            self._activeDrawHandler = handler
+            handler.begin(self, point)
+            # Capture the complete drag even when the pointer leaves the canvas.
+            self.grabMouse()
+            event.accept()
+            return
 
-            p = QPainter(self.drawingLayer)
-            p.setRenderHint(QPainter.Antialiasing, True)
-            if self._mode == "erase":
-                p.setCompositionMode(QPainter.CompositionMode_Clear)
-                pen = QPen(Qt.transparent, self.brushSize, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
-                p.setPen(pen)
-            else:
-                p.setCompositionMode(QPainter.CompositionMode_SourceOver)
-                p.setPen(self._pen)
-            p.drawPoint(self.lastPointCanvas)
-            p.end()
-            self._mark_composite_dirty()
-
-            # Update only the affected region
-            dirty_canvas = self._dirty_canvas_rect_for_point(self.lastPointCanvas, self.brushSize)
-            self.update(self._from_canvas_rect(dirty_canvas))
+        super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         """
@@ -1406,26 +1516,13 @@ class PainterWidget(QWidget):
             self.update()
             return
 
-        if (event.buttons() & Qt.LeftButton) and self.drawing:
-            self._ensure_layers()
+        if (event.buttons() & Qt.LeftButton) and self.drawing and self._activeDrawHandler is not None:
             cur = self._to_canvas_point(event.position())
-            p = QPainter(self.drawingLayer)
-            p.setRenderHint(QPainter.Antialiasing, True)
-            if self._mode == "erase":
-                p.setCompositionMode(QPainter.CompositionMode_Clear)
-                pen = QPen(Qt.transparent, self.brushSize, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
-                p.setPen(pen)
-            else:
-                p.setCompositionMode(QPainter.CompositionMode_SourceOver)
-                p.setPen(self._pen)
-            p.drawLine(self.lastPointCanvas, cur)
-            p.end()
-            self._mark_composite_dirty()
+            self._activeDrawHandler.update(self, cur)
+            event.accept()
+            return
 
-            # Update only the affected region for this segment
-            dirty_canvas = self._dirty_canvas_rect_for_segment(self.lastPointCanvas, cur, self.brushSize)
-            self.lastPointCanvas = cur
-            self.update(self._from_canvas_rect(dirty_canvas))
+        super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         """
@@ -1439,11 +1536,29 @@ class PainterWidget(QWidget):
             event.accept()
             return
 
-        if event.button() in (Qt.LeftButton, Qt.RightButton):
+        if event.button() == Qt.LeftButton:
             self._mouseDown = False
             if self.cropping and self._selecting:
                 self._finalize_crop()
-            self.drawing = False
+                event.accept()
+                return
+
+            if self.drawing and self._activeDrawHandler is not None:
+                cur = self._to_canvas_point(event.position())
+                handler = self._activeDrawHandler
+                handler.release(self, cur)
+                self._activeDrawHandler = None
+                try:
+                    self.releaseMouse()
+                except Exception:
+                    pass
+                event.accept()
+                return
+
+        if event.button() == Qt.RightButton:
+            self._mouseDown = False
+
+        super().mouseReleaseEvent(event)
 
     def keyPressEvent(self, event):
         """
@@ -1459,8 +1574,12 @@ class PainterWidget(QWidget):
             if self.cropping and self._selecting:
                 self._finalize_crop()
         elif event.key() == Qt.Key_Escape:
-            if self.cropping:
+            if self.drawing:
+                self.cancel_active_drawing()
+            elif self.cropping:
                 self.cancel_crop()
+        else:
+            super().keyPressEvent(event)
 
     def paintEvent(self, event):
         """
@@ -1484,6 +1603,13 @@ class PainterWidget(QWidget):
                 # Draw strokes on top
                 p.setCompositionMode(QPainter.CompositionMode_SourceOver)
                 p.drawImage(target_rect, self.drawingLayer, src_rect)
+
+        # Draw transient vector-shape preview in logical canvas coordinates.
+        if self.drawing and self._mode != "erase" and self._activeDrawHandler is not None:
+            p.save()
+            p.scale(self.zoom, self.zoom)
+            self._activeDrawHandler.paint_preview(self, p)
+            p.restore()
 
         # Draw crop overlay if active (convert canvas selection to display coords)
         if self.cropping and not self._selectionRect.isNull():

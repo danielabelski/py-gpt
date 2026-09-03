@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.01.21 01:00:00                  #
+# Updated Date: 2026.09.03 20:31:00
 # ================================================== #
 
 from PySide6.QtCore import Qt
@@ -78,6 +78,12 @@ class Custom:
 
 
         self.window.ui.config['global']['img_raw'].setText(trans("img.raw"))
+
+        # painter drawing modes (combo + RMB submenu)
+        try:
+            self.window.controller.painter.common.retranslate_draw_modes()
+        except (AttributeError, KeyError):
+            pass
 
         # camera capture
         if not self.window.core.config.get('vision.capture.auto'):

@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.02 18:00:00
+# Updated Date: 2026.09.03 20:31:00
 # ================================================== #
 
 import copy
@@ -469,6 +469,13 @@ class Patch:
                 patch_css('web-chatgpt.css', True)
                 patch_css('web-chatgpt_wide.css', True)
                 updated = True
+
+            # < 2.8.7
+            if old < parse_version("2.8.7"):
+                print("Migrating config from < 2.8.7...")
+                if "painter.draw.mode" not in data:
+                    data["painter.draw.mode"] = cfg_get_base("painter.draw.mode")
+                    updated = True
 
         # update file
         migrated = False

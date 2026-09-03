@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2024.11.05 23:00:00                  #
+# Updated Date: 2026.09.03 20:31:00                  #
 # ================================================== #
 
 from unittest.mock import MagicMock, patch
@@ -20,9 +20,11 @@ def test_setup(mock_window):
     painter = Painter(mock_window)
     painter.restore = MagicMock()
     painter.common.change_canvas_size = MagicMock()
+    painter.common.restore_brush_settings = MagicMock()
     painter.setup()
     painter.restore.assert_called_once()
     painter.common.change_canvas_size.assert_called_once()
+    painter.common.restore_brush_settings.assert_called_once()
 
 
 def test_open(mock_window):

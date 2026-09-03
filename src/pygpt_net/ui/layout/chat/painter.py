@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.03 14:23:00                  #
+# Updated Date: 2026.09.03 20:31:00
 # ================================================== #
 
 from PySide6.QtGui import QPixmap, QIcon
@@ -14,6 +14,7 @@ from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QRadioButton, Q
 from PySide6.QtCore import QSize
 
 from pygpt_net.ui.widget.draw.painter import PainterWidget
+from pygpt_net.ui.widget.draw.modes import DRAW_MODE_TRANSLATION_KEYS
 from pygpt_net.ui.widget.element.labels import HelpLabel
 from pygpt_net.ui.widget.option.combo import NoScrollCombo
 from pygpt_net.utils import trans
@@ -41,6 +42,16 @@ class Painter:
 
         if getattr(ui, 'painter', None) is None:
             ui.painter = PainterWidget(self.window)
+
+        key = 'painter.select.draw.mode'
+        if nodes.get(key) is None:
+            cb = NoScrollCombo(self.window)
+            cb.setMinimumContentsLength(10)
+            cb.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+            for draw_mode in common.get_draw_modes():
+                cb.addItem(trans(DRAW_MODE_TRANSLATION_KEYS[draw_mode]), draw_mode.value)
+            cb.currentIndexChanged.connect(lambda _idx: common.change_draw_mode(cb.currentData()))
+            nodes[key] = cb
 
         key = 'painter.btn.brush'
         if nodes.get(key) is None:
@@ -180,6 +191,7 @@ class Painter:
         top = QHBoxLayout()
         top.addWidget(nodes['painter.btn.brush'])
         top.addWidget(nodes['painter.btn.erase'])
+        top.addWidget(nodes['painter.select.draw.mode'])
         top.addWidget(nodes['painter.select.brush.size'])
         top.addWidget(nodes['painter.select.brush.color'])
         top.addWidget(nodes['painter.select.canvas.size'])

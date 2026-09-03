@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.09.02 15:00:00                  #
+# Updated Date: 2026.09.03 20:31:00
 # ================================================== #
 
 from typing import Tuple, Optional, Dict, List
@@ -14,6 +14,9 @@ from typing import Tuple, Optional, Dict, List
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QComboBox
+
+from pygpt_net.ui.widget.draw.modes import DrawMode, DRAW_MODE_ORDER, DRAW_MODE_TRANSLATION_KEYS
+from pygpt_net.utils import trans
 
 
 class Common:
@@ -30,6 +33,8 @@ class Common:
         self._predef_canvas_sizes_set = None
         # Sticky custom value derived from the current "source" image (kept at index 0 when present)
         self._sticky_custom_value: Optional[str] = None
+        # Guard for toolbar/context-menu drawing mode synchronization
+        self._changing_draw_mode = False
 
     def convert_to_size(self, canvas_size: str) -> Tuple[int, int]:
         """
@@ -75,6 +80,64 @@ class Common:
             self.window.ui.painter.set_mode("erase")
             self.window.core.config.set('painter.brush.mode', "erase")
             self.window.core.config.save()
+
+    def get_draw_modes(self):
+        """Return drawing modes in UI order."""
+        return DRAW_MODE_ORDER
+
+    def change_draw_mode(self, selected=None):
+        """
+        Change drawing mode and synchronize toolbar/context-menu state.
+
+        :param selected: DrawMode ID; if omitted, read it from toolbar combo
+        """
+        if self._changing_draw_mode:
+            return
+
+        combo = self.window.ui.nodes.get('painter.select.draw.mode')
+        if selected is None and combo is not None:
+            selected = combo.currentData()
+        mode = DrawMode.from_value(selected)
+
+        try:
+            self._changing_draw_mode = True
+            self.window.ui.painter.set_draw_mode(mode)
+
+            if combo is not None:
+                idx = combo.findData(mode.value)
+                if idx >= 0 and idx != combo.currentIndex():
+                    combo.blockSignals(True)
+                    combo.setCurrentIndex(idx)
+                    combo.blockSignals(False)
+
+            self.window.core.config.set('painter.draw.mode', mode.value)
+            self.window.core.config.save()
+        finally:
+            self._changing_draw_mode = False
+
+    def restore_draw_mode(self):
+        """Restore drawing mode from config; invalid IDs fall back to Free."""
+        mode = DrawMode.FREE
+        if self.window.core.config.has('painter.draw.mode'):
+            mode = DrawMode.from_value(self.window.core.config.get('painter.draw.mode', DrawMode.FREE.value))
+        self.change_draw_mode(mode.value)
+
+    def retranslate_draw_modes(self):
+        """Refresh toolbar and context-menu drawing mode labels."""
+        combo = self.window.ui.nodes.get('painter.select.draw.mode')
+        if combo is not None:
+            current = DrawMode.from_value(combo.currentData())
+            combo.blockSignals(True)
+            for i in range(combo.count()):
+                mode = DrawMode.from_value(combo.itemData(i))
+                combo.setItemText(i, trans(DRAW_MODE_TRANSLATION_KEYS[mode]))
+            idx = combo.findData(current.value)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+            combo.blockSignals(False)
+        painter = getattr(self.window.ui, 'painter', None)
+        if painter is not None and hasattr(painter, 'retranslate_draw_modes'):
+            painter.retranslate_draw_modes()
 
     def change_canvas_size(self, selected: Optional[str] = None):
         """
@@ -167,6 +230,38 @@ class Common:
         self.window.core.config.set('painter.brush.size', size)
         self.window.core.config.save()
 
+    def step_brush_size(self, direction: int):
+        """
+        Move to the next/previous configured brush size and keep the combo in sync.
+        Used by Painter wheel handling while LMB is held.
+
+        :param direction: positive = larger, negative = smaller
+        """
+        if direction == 0:
+            return
+        sizes = sorted({int(value) for value in self.get_sizes()})
+        if not sizes:
+            return
+
+        current = int(getattr(self.window.ui.painter, 'brushSize', sizes[0]))
+        if direction > 0:
+            candidates = [value for value in sizes if value > current]
+            target = candidates[0] if candidates else sizes[-1]
+        else:
+            candidates = [value for value in sizes if value < current]
+            target = candidates[-1] if candidates else sizes[0]
+
+        if target == current:
+            return
+
+        combo = self.window.ui.nodes.get('painter.select.brush.size')
+        if combo is not None:
+            idx = combo.findText(str(target))
+            if idx >= 0:
+                combo.setCurrentIndex(idx)  # signal persists + applies size
+                return
+        self.change_brush_size(target)
+
     def change_brush_color(self):
         """Change the brush color"""
         color = self.window.ui.nodes['painter.select.brush.color'].currentData()
@@ -206,6 +301,10 @@ class Common:
             elif mode == "erase":
                 self.window.ui.nodes['painter.btn.erase'].setChecked(True)
                 self.set_erase_mode(True)
+
+        # drawing mode (Free / Arrow / Rectangle / Circle / Line)
+        self.restore_draw_mode()
+
         # color
         if brush_color:
             combo = self.window.ui.nodes['painter.select.brush.color']
