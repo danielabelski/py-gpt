@@ -231,12 +231,8 @@ class UI:
 
         :param label: label
         """
-        mode = self.window.core.config.get('mode')
-        allowed = self.window.core.ctx.is_allowed_for_mode(mode)
         if label is None:
             label = ''
-        if allowed:
-            label += ' (+)'
         label_str = str(label)
         if label_str != self._last_chat_label:
             self.window.ui.nodes['chat.label'].setText(label_str)

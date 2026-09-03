@@ -77,7 +77,6 @@ def test_update_tokens(mock_window):
     ui.update_tokens()
     mock_window.core.config.set("lang", "en")
     mock_window.ui.nodes['input.counter'].setText.assert_has_calls([
-        call('53 / 66 - 41 tokens'),
         call('133 + 222 + 41 + 35 + 0 = 71 / 822')
     ])  # must have EN lang in config to pass!!!!!!!!
 

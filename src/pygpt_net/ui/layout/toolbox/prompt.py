@@ -9,7 +9,7 @@
 # Updated Date: 2025.08.24 23:00:00                  #
 # ================================================== #
 
-from PySide6.QtGui import Qt, QIcon
+from PySide6.QtGui import Qt
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QSizePolicy
 
 from pygpt_net.ui.widget.element.labels import HelpLabel, TitleLabel
@@ -40,13 +40,11 @@ class Prompt:
         nodes['cmd.enabled'] = ToggleLabel(
             trans('cmd.enabled'),
             label_position="left",
-            icon=":/icons/build.svg",
             parent=w
         )
         box = nodes['cmd.enabled'].box
         box.toggled.connect(w.controller.chat.common.toggle_cmd)
         box.setToolTip(trans('cmd.tip'))
-        box.setIcon(QIcon(":/icons/add.svg"))
 
         header_widget = QWidget()
         header_layout = QHBoxLayout(header_widget)
