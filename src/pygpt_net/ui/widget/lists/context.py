@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.03 13:52:00                  #
+# Updated Date: 2026.09.03 14:05:00                  #
 # ================================================== #
 
 import datetime
@@ -34,6 +34,11 @@ class ContextList(BaseList):
         self.window = window
         self.id = id
         self.expanded_items = set()
+        # Top-level context-list sections (Pinned / Projects / Recent) have
+        # their own persisted collapsed state. Missing/invalid config values
+        # intentionally mean "all expanded" for backward compatibility.
+        self.collapsed_sections = self._load_collapsed_sections()
+        self._section_visibility_updating = False
         self._icons = {
             'add': QIcon(":/icons/add.svg"),
             'edit': QIcon(":/icons/edit.svg"),
@@ -199,6 +204,8 @@ class ContextList(BaseList):
         """
         Trigger infinite scroll: when scrollbar reaches bottom, request the next page.
         """
+        if self._section_visibility_updating or 'recent' in self.collapsed_sections:
+            return
         try:
             sb = self.verticalScrollBar()
         except Exception:
@@ -608,6 +615,129 @@ class ContextList(BaseList):
         except Exception:
             return False
 
+    def _is_collapsible_section_index(self, index: QtCore.QModelIndex) -> bool:
+        """Return True if index points to a collapsible top-level section row."""
+        try:
+            if not index.isValid() or index.parent().isValid():
+                return False
+            item = self._model.itemFromIndex(index)
+            return bool(
+                isinstance(item, SectionItem)
+                and getattr(item, 'section_key', None)
+            )
+        except Exception:
+            return False
+
+    def is_section_collapsed(self, index: QtCore.QModelIndex) -> bool:
+        """Return True when the supplied top-level section is collapsed."""
+        try:
+            if not index.isValid() or not self._is_collapsible_section_index(index):
+                return False
+            item = self._model.itemFromIndex(index)
+            section_key = getattr(item, 'section_key', None)
+            return bool(section_key and section_key in self.collapsed_sections)
+        except Exception:
+            return False
+
+    def _load_collapsed_sections(self) -> set[str]:
+        """Load persisted collapsed section IDs; missing config means expanded."""
+        try:
+            value = self.window.core.config.get('ctx.list.sections.collapsed', [])
+        except Exception:
+            value = []
+        if not isinstance(value, (list, tuple, set)):
+            return set()
+        allowed = {'pinned', 'projects', 'recent'}
+        return {str(section) for section in value if str(section) in allowed}
+
+    def _save_collapsed_sections(self):
+        """Persist collapsed top-level section IDs."""
+        try:
+            self.window.core.config.set(
+                'ctx.list.sections.collapsed',
+                sorted(self.collapsed_sections),
+            )
+            self.window.core.config.save()
+        except Exception:
+            pass
+
+    def apply_section_visibility(self):
+        """Apply persisted collapsed state to all top-level section row ranges."""
+        model = self.model()
+        if model is None:
+            return
+
+        self._section_visibility_updating = True
+        try:
+            headers = []
+            for row in range(model.rowCount()):
+                item = model.item(row) if hasattr(model, 'item') else None
+                if isinstance(item, SectionItem) and getattr(item, 'section_key', None):
+                    headers.append((row, item.section_key))
+
+            root = QtCore.QModelIndex()
+            for i, (header_row, section_key) in enumerate(headers):
+                next_header_row = headers[i + 1][0] if i + 1 < len(headers) else model.rowCount()
+                last_row = next_header_row - 1
+
+                # The empty spacer immediately before the next section visually
+                # belongs to that next header, so keep it visible even when the
+                # preceding section is collapsed.
+                if last_row > header_row:
+                    tail = model.item(last_row) if hasattr(model, 'item') else None
+                    if (
+                        isinstance(tail, SectionItem)
+                        and not getattr(tail, 'section_key', None)
+                        and not getattr(tail, 'title', '')
+                    ):
+                        last_row -= 1
+
+                hidden = section_key in self.collapsed_sections
+                for row in range(header_row + 1, last_row + 1):
+                    self.setRowHidden(row, root, hidden)
+
+                # Header and the next-section spacer must always stay visible.
+                self.setRowHidden(header_row, root, False)
+                if last_row + 1 < next_header_row:
+                    self.setRowHidden(last_row + 1, root, False)
+        finally:
+            self._section_visibility_updating = False
+
+    def _section_label_rect(self, index: QtCore.QModelIndex) -> QtCore.QRect:
+        """Return the clickable rectangle occupied by a section's left label."""
+        if not index.isValid() or not self._is_collapsible_section_index(index):
+            return QtCore.QRect()
+        try:
+            delegate = self.itemDelegate()
+            if hasattr(delegate, 'section_label_rect'):
+                return delegate.section_label_rect(index, self.visualRect(index))
+        except Exception:
+            pass
+        return QtCore.QRect()
+
+    def _handle_section_toggle_click(self, index: QtCore.QModelIndex, pos: QtCore.QPoint) -> bool:
+        """Toggle a top-level section only when its left text label is clicked."""
+        if not index.isValid() or not self._is_collapsible_section_index(index):
+            return False
+        if not self._section_label_rect(index).contains(pos):
+            return False
+
+        try:
+            item = self._model.itemFromIndex(index)
+            section_key = getattr(item, 'section_key', None)
+            if not section_key:
+                return False
+            if section_key in self.collapsed_sections:
+                self.collapsed_sections.discard(section_key)
+            else:
+                self.collapsed_sections.add(section_key)
+            self.apply_section_visibility()
+            self._save_collapsed_sections()
+            QtCore.QTimer.singleShot(0, self._refresh_hover_from_cursor)
+            return True
+        except Exception:
+            return False
+
     def _can_toggle_with_ctrl(self, index: QtCore.QModelIndex) -> bool:
         """
         Returns True if Ctrl-toggle on the given index would not mix selection types.
@@ -798,6 +928,10 @@ class ContextList(BaseList):
 
     def is_section_action_hovered(self, index: QtCore.QModelIndex) -> bool:
         """Return True when the pointer currently hovers an actionable section row."""
+        # Collapsed sections intentionally expose the total item counter on
+        # the right instead of add.svg, regardless of hover state.
+        if self.is_section_collapsed(index):
+            return False
         cursor_index = self._index_under_cursor()
         if cursor_index.isValid() and self._is_section_action_index(cursor_index):
             return self._same_index(QPersistentModelIndex(cursor_index), index)
@@ -897,6 +1031,8 @@ class ContextList(BaseList):
         """Run the add action exposed by a Projects/Recent section header."""
         if not index.isValid() or not self._is_section_action_index(index):
             return False
+        if self.is_section_collapsed(index):
+            return False
         if not self.is_section_action_hovered(index):
             return False
         if not self._section_add_rect(index).contains(pos):
@@ -953,8 +1089,18 @@ class ContextList(BaseList):
             index = self.indexAt(pos)
 
             # Section-header add icons are independent actions. Consume the
-            # click before normal item-view handling.
+            # click before section collapsing so add.svg never toggles a section.
             if self._handle_section_add_click(index, pos):
+                event.accept()
+                return
+
+            # Only the left text label toggles a whole Pinned / Projects /
+            # Recent section. Clicking empty header space intentionally does
+            # nothing.
+            if self._handle_section_toggle_click(index, pos):
+                event.accept()
+                return
+            if self._is_collapsible_section_index(index):
                 event.accept()
                 return
 
@@ -2020,6 +2166,44 @@ class ImportantItemDelegate(QtWidgets.QStyledItemDelegate):
         """Return the add.svg paint/hit-test rectangle for a section header."""
         return self.group_add_rect(row_rect)
 
+    def section_label_rect(self, index: QtCore.QModelIndex, row_rect: QtCore.QRect) -> QtCore.QRect:
+        """Return the actual left-title hit area for a collapsible section."""
+        if not index.isValid() or not row_rect.isValid():
+            return QtCore.QRect()
+        try:
+            model = index.model()
+            item = model.itemFromIndex(index) if hasattr(model, 'itemFromIndex') else None
+            if not isinstance(item, SectionItem) or not getattr(item, 'section_key', None):
+                return QtCore.QRect()
+
+            opt = QtWidgets.QStyleOptionViewItem()
+            opt.rect = QtCore.QRect(row_rect)
+            self.initStyleOption(opt, index)
+            view = self.parent()
+            if view is not None:
+                opt.widget = view
+            opt.text = item.title
+            opt.displayAlignment = QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter
+            style = view.style() if view is not None else QtWidgets.QApplication.style()
+            text_rect = style.subElementRect(
+                QtWidgets.QStyle.SE_ItemViewItemText,
+                opt,
+                opt.widget,
+            )
+            if not text_rect.isValid() or text_rect.width() <= 0:
+                text_rect = row_rect.adjusted(2, 0, -2, 0)
+
+            fm = QtGui.QFontMetrics(opt.font)
+            width = min(text_rect.width(), max(1, fm.horizontalAdvance(item.title)))
+            return QtCore.QRect(
+                text_rect.left(),
+                row_rect.top(),
+                width,
+                row_rect.height(),
+            )
+        except Exception:
+            return QtCore.QRect()
+
     def _init_group_indicator_from_config(self):
         """
         Initialize group indicator settings from config if available.
@@ -2110,6 +2294,30 @@ class ImportantItemDelegate(QtWidgets.QStyledItemDelegate):
         except Exception:
             item = None
 
+        # A collapsed top-level section always shows its full item count on
+        # the right. This takes precedence over hover actions (add.svg) and
+        # over Recent's inline date label.
+        if isinstance(item, SectionItem) and getattr(item, 'section_key', None):
+            view = self.parent()
+            is_collapsed = False
+            try:
+                is_collapsed = bool(
+                    view is not None
+                    and view.is_section_collapsed(index)
+                )
+            except Exception:
+                is_collapsed = False
+
+            if is_collapsed and getattr(item, 'section_count', None) is not None:
+                self._paint_split_section(
+                    painter,
+                    option,
+                    index,
+                    item,
+                    right_text=str(item.section_count),
+                )
+                return
+
         if isinstance(item, SectionItem) and item.action:
             view = self.parent()
             is_hovered = False
@@ -2147,6 +2355,14 @@ class ImportantItemDelegate(QtWidgets.QStyledItemDelegate):
                 return
 
         if isinstance(item, SectionItem) and item.right_text:
+            self._paint_split_section(painter, option, index, item)
+            return
+
+        # Plain top-level section headers (currently Pinned) must use the same
+        # painter as their collapsed/count state. Otherwise Qt's default item
+        # painter and _paint_split_section() can produce a one-pixel baseline
+        # difference when the section is collapsed and the counter appears.
+        if isinstance(item, SectionItem) and getattr(item, 'section_key', None):
             self._paint_split_section(painter, option, index, item)
             return
 
@@ -2394,7 +2610,7 @@ class ImportantItemDelegate(QtWidgets.QStyledItemDelegate):
         if show_icon:
             self._add_icon.paint(painter, action_rect, QtCore.Qt.AlignCenter)
 
-    def _paint_split_section(self, painter, option, index, item):
+    def _paint_split_section(self, painter, option, index, item, right_text=None):
         """
         Paint a section row with a full left title and a right label.
 
@@ -2407,6 +2623,10 @@ class ImportantItemDelegate(QtWidgets.QStyledItemDelegate):
         """
         opt = QtWidgets.QStyleOptionViewItem(option)
         self.initStyleOption(opt, index)
+
+        # Keep title/counter geometry identical while the pointer moves over
+        # a collapsed section. The hover itself has no action in this state.
+        opt.state &= ~QtWidgets.QStyle.State_MouseOver
 
         style = opt.widget.style() if opt.widget is not None else QtWidgets.QApplication.style()
 
@@ -2443,11 +2663,19 @@ class ImportantItemDelegate(QtWidgets.QStyledItemDelegate):
         if right_content_left >= text_rect.right():
             return
 
+        # Plain top-level headers such as Pinned intentionally use this same
+        # paint path even when they have no right-side label. Keeping the left
+        # title on one painter path prevents its baseline from changing when a
+        # collapsed-state counter later appears.
+        resolved_right_text = item.right_text if right_text is None else str(right_text)
+        if resolved_right_text is None or resolved_right_text == "":
+            return
+
         # Use a second native item-style pass for the right label. Its outer
         # rect ends at the original row edge, so its right padding is exactly
         # the same as for a standalone right-aligned date SectionItem.
         right_opt = QtWidgets.QStyleOptionViewItem(opt)
-        right_opt.text = item.right_text
+        right_opt.text = resolved_right_text
         right_opt.displayAlignment = QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter
         right_opt.textElideMode = QtCore.Qt.ElideRight
 
@@ -2511,12 +2739,16 @@ class SectionItem(QStandardItem):
             group: bool = False,
             right_text: str | None = None,
             action: str | None = None,
+            section_key: str | None = None,
+            section_count: int | None = None,
     ):
         super().__init__(title)
         self.title = title
         self.group = group
         self.right_text = right_text
         self.action = action
+        self.section_key = section_key
+        self.section_count = section_count
         self.setSelectable(False)
         self.setEnabled(False)
         self.setTextAlignment(QtCore.Qt.AlignRight)

@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.03 11:56:00                  #
+# Updated Date: 2026.09.03 14:05:00                  #
 # ================================================== #
 
 from PySide6 import QtCore
@@ -137,6 +137,10 @@ class CtxList:
                     self.update_items(id, data)
                     self.update_groups(id, data, expand=expand)
 
+                # Restore top-level section collapse state after every model
+                # rebuild. Missing config means all sections stay expanded.
+                node.apply_section_visibility()
+
                 # APPLY PENDING SCROLL BEFORE RE-ENABLING UPDATES (prevents top flicker)
                 try:
                     node.apply_pending_scroll()
@@ -206,6 +210,10 @@ class CtxList:
 
                 model.insertRow(insert_pos, item)
                 insert_pos += 1
+
+            # Newly appended Recent rows inherit the persisted visibility
+            # immediately when the section is collapsed.
+            node.apply_section_visibility()
         finally:
             node.setUpdatesEnabled(True)
 
@@ -219,6 +227,7 @@ class CtxList:
         i = 0
         last_dt_str = None
         model = self.window.ui.models[id]
+        recent_total = None
         for meta_id, meta in data.items():
             gid = meta.group_id
             if (gid is None or gid == 0) and not meta.important:
@@ -230,11 +239,13 @@ class CtxList:
                     and (not item.isPinned or self._pinned_separators)
                 )
                 if i == 0:
+                    recent_total = self._count_recent_total()
                     self.append_list_section(
                         model,
                         'ctx.list.section.recent',
                         right_text=item.dt if inline_first_date else None,
                         action='new_context',
+                        section_count=recent_total,
                     )
                 if self._group_separators and (not item.isPinned or self._pinned_separators):
                     if not inline_first_date and (i == 0 or last_dt_str != item.dt):
@@ -255,13 +266,22 @@ class CtxList:
         i = 0
         last_dt_str = None
         model = self.window.ui.models[id]
+        pinned_total = sum(
+            1
+            for meta in data.values()
+            if (meta.group_id is None or meta.group_id == 0) and meta.important
+        )
 
         for meta_id, meta in data.items():
             gid = meta.group_id
             if (gid is None or gid == 0) and meta.important:
                 item = self.build_item(meta_id, meta, is_group=False)
                 if i == 0:
-                    self.append_list_section(model, 'ctx.list.section.pinned')
+                    self.append_list_section(
+                        model,
+                        'ctx.list.section.pinned',
+                        section_count=pinned_total,
+                    )
                 if self._group_separators and self._pinned_separators:
                     if i == 0 or last_dt_str != item.dt:
                         section = self.build_date_section(item.dt, group=False)
@@ -288,6 +308,14 @@ class CtxList:
             if gid is not None and gid != 0:
                 grouped.setdefault(gid, []).append((meta_id, meta))
 
+        project_total = 0
+        for group_id in groups:
+            group = groups[group_id]
+            c = len(grouped.get(group.id, []))
+            if c == 0 and search_string:
+                continue
+            project_total += 1
+
         # Ensure icons for closed/open folder states are loaded once
         if getattr(self, "_folder_icon", None) is None:
             self._folder_icon = QIcon(":/icons/folder.svg")
@@ -310,6 +338,7 @@ class CtxList:
                     model,
                     'ctx.list.section.projects',
                     action='new_project',
+                    section_count=project_total,
                 )
                 section_added = True
 
@@ -371,6 +400,42 @@ class CtxList:
                 count += 1
         return count
 
+    def _count_recent_total(self) -> int:
+        """
+        Count all matching ungrouped, non-pinned contexts in the provider.
+
+        Recent is paginated in the UI, so counting rows already present in the
+        model would only return the currently loaded page(s). Use the provider
+        count API with the same active search/filter criteria instead.
+
+        :return: total number of matching Recent contexts
+        """
+        ctx = self.window.core.ctx
+        filters = ctx.get_parsed_filters()
+        filters['is_important'] = {"mode": "=", "value": 0}
+        filters['group_id'] = {"mode": "NULL_OR_ZERO", "value": 0}
+
+        try:
+            provider = ctx.get_provider()
+            return int(provider.count_meta(
+                search_string=ctx.get_search_string(),
+                filters=filters,
+                search_content=ctx.is_search_content(),
+            ))
+        except Exception:
+            # Defensive fallback for legacy/custom providers which do not
+            # implement count_meta yet. This preserves correct UI operation;
+            # the standard SQLite provider uses an efficient COUNT query.
+            count = 0
+            try:
+                for meta in ctx.get_meta().values():
+                    gid = meta.group_id
+                    if (gid is None or gid == 0) and not meta.important:
+                        count += 1
+            except Exception:
+                pass
+            return count
+
     def build_item(self, id: int, data: CtxMeta, is_group: bool = False) -> Item:
         """
         Build item for list (child)
@@ -427,6 +492,7 @@ class CtxList:
         translation_key: str,
         right_text: str | None = None,
         action: str | None = None,
+        section_count: int | None = None,
     ):
         """
         Append a top-level list section heading. Add a small spacer above it
@@ -437,15 +503,19 @@ class CtxList:
         :param translation_key: translation key for the section title
         :param right_text: optional right-aligned text (e.g. first Recent date section)
         :param action: optional hover action handled by ContextList
+        :param section_count: total number of elements contained by the section
         """
         if model.rowCount() > 0:
             spacer = SectionItem("", group=False)
             spacer.setSizeHint(QtCore.QSize(0, self._list_section_top_spacing))
             model.appendRow(spacer)
+        section_key = translation_key.rsplit('.', 1)[-1]
         model.appendRow(self.build_list_section(
             translation_key,
             right_text=right_text,
             action=action,
+            section_key=section_key,
+            section_count=section_count,
         ))
 
     def build_list_section(
@@ -453,6 +523,8 @@ class CtxList:
         translation_key: str,
         right_text: str | None = None,
         action: str | None = None,
+        section_key: str | None = None,
+        section_count: int | None = None,
     ) -> SectionItem:
         """
         Build a top-level list section heading using the same visual style
@@ -461,6 +533,8 @@ class CtxList:
         :param translation_key: translation key for the section title
         :param right_text: optional right-aligned text shown in the same row
         :param action: optional hover action handled by ContextList
+        :param section_key: stable top-level section ID used for collapse state
+        :param section_count: total number of elements contained by the section
         :return: SectionItem
         """
         section = SectionItem(
@@ -468,13 +542,15 @@ class CtxList:
             group=False,
             right_text=right_text,
             action=action,
+            section_key=section_key,
+            section_count=section_count,
         )
-        section.setTextAlignment(QtCore.Qt.AlignLeft)
-        if action:
-            # Projects/Recent swap right-side content on hover. Reserve an
-            # explicit row height in the model so showing add.svg can never
-            # change the row geometry or the vertically centered title.
-            section.setSizeHint(QtCore.QSize(0, self._list_section_row_height))
+        section.setTextAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        # Keep every top-level section header at the same fixed height. Pinned
+        # also changes its right-side content when collapsed (the total count
+        # appears), so relying on the implicit size hint would shift its label
+        # slightly vertically when the counter is shown.
+        section.setSizeHint(QtCore.QSize(0, self._list_section_row_height))
         return section
 
     def build_date_section(self, dt: str, group: bool = False) -> SectionItem:

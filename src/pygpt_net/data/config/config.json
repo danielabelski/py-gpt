@@ -152,6 +152,7 @@
   "ctx.counters.all": false,
   "ctx.edit_icons": true,
   "ctx.list.expanded": [],
+  "ctx.list.sections.collapsed": [],
   "ctx.reasoning.hide_after_response": true,
   "ctx.reasoning.show_realtime": true,
   "ctx.records.filter": "all",

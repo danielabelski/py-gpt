@@ -108,6 +108,19 @@ class DbSqliteProvider(BaseProvider):
             search_content=search_content,
         )
 
+    def count_meta(
+            self,
+            search_string: Optional[str] = None,
+            filters: Optional[dict] = None,
+            search_content: bool = False,
+    ) -> int:
+        """Return number of context metadata rows matching search/filters."""
+        return self.storage.count_meta(
+            search_string=search_string,
+            filters=filters,
+            search_content=search_content,
+        )
+
     def get_meta_indexed(self) -> Dict[int, CtxMeta]:
         """
         Return dict of ctx meta indexed by ID

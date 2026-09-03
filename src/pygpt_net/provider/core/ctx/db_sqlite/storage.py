@@ -198,6 +198,44 @@ class Storage:
 
         return items
 
+    def count_meta(
+            self,
+            search_string: Optional[str] = None,
+            filters: Optional[dict] = None,
+            search_content: bool = False,
+    ) -> int:
+        """
+        Count distinct context metadata rows matching search/filter criteria.
+
+        This mirrors get_meta() filtering without materializing all CtxMeta
+        objects, which is important for the paginated Recent section counter.
+
+        :param search_string: search string
+        :param filters: dict of filters
+        :param search_content: search in content (input, output)
+        :return: number of matching contexts
+        """
+        where_statement, join_statement, bind_params = self.prepare_query(
+            search_string=search_string,
+            filters=filters,
+            search_content=search_content,
+            append_date_ranges=True,
+        )
+
+        stmt = text(f"""
+            SELECT COUNT(DISTINCT m.id) AS total
+            FROM ctx_meta m
+            {join_statement}
+            WHERE {where_statement}
+        """).bindparams(**bind_params)
+
+        db = self.window.core.db.get_db()
+        with db.connect() as conn:
+            row = conn.execute(stmt).fetchone()
+            if row is None:
+                return 0
+            return int(row.total or 0)
+
     def get_meta_indexed(self) -> Dict[int, CtxMeta]:
         """
         Return dict with indexed CtxMeta objects, indexed by ID
