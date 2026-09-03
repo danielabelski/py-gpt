@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.01.03 17:00:00                  #
+# Updated Date: 2026.09.03 11:56:00                  #
 # ================================================== #
 
 from PySide6 import QtCore
@@ -33,6 +33,10 @@ class CtxList:
         self.search_input = SearchInput(window)
         self._group_separators = False
         self._pinned_separators = False
+        self._list_section_top_spacing = 12
+        # Show "Recent" and its first date separator in one row.
+        # Set to False to restore separate rows.
+        self._recent_section_inline_date = True
 
         # Cached icons for closed/open folder states
         self._folder_icon = None
@@ -220,8 +224,20 @@ class CtxList:
             gid = meta.group_id
             if (gid is None or gid == 0) and not meta.important:
                 item = self.build_item(meta_id, meta, is_group=False)
+                inline_first_date = (
+                    i == 0
+                    and self._recent_section_inline_date
+                    and self._group_separators
+                    and (not item.isPinned or self._pinned_separators)
+                )
+                if i == 0:
+                    self.append_list_section(
+                        model,
+                        'ctx.list.section.recent',
+                        right_text=item.dt if inline_first_date else None,
+                    )
                 if self._group_separators and (not item.isPinned or self._pinned_separators):
-                    if i == 0 or last_dt_str != item.dt:
+                    if not inline_first_date and (i == 0 or last_dt_str != item.dt):
                         section = self.build_date_section(item.dt, group=False)
                         if section:
                             model.appendRow(section)
@@ -244,6 +260,8 @@ class CtxList:
             gid = meta.group_id
             if (gid is None or gid == 0) and meta.important:
                 item = self.build_item(meta_id, meta, is_group=False)
+                if i == 0:
+                    self.append_list_section(model, 'ctx.list.section.pinned')
                 if self._group_separators and self._pinned_separators:
                     if i == 0 or last_dt_str != item.dt:
                         section = self.build_date_section(item.dt, group=False)
@@ -277,6 +295,7 @@ class CtxList:
             self._folder_open_icon = QIcon(":/icons/folder_open.svg")
 
         node = self.window.ui.nodes[id]
+        section_added = False
 
         for group_id in groups:
             last_dt_str = None
@@ -285,6 +304,10 @@ class CtxList:
             c = len(items_in_group)
             if c == 0 and search_string:
                 continue
+
+            if not section_added:
+                self.append_list_section(model, 'ctx.list.section.projects')
+                section_added = True
 
             # Display only the group name; the counter is drawn by delegate on the right
             is_attachment = group.has_additional_ctx()
@@ -393,6 +416,48 @@ class CtxList:
         item.setData(custom_data, QtCore.Qt.ItemDataRole.UserRole)
         item.setData(name)
         return item
+
+    def append_list_section(
+        self,
+        model: QStandardItemModel,
+        translation_key: str,
+        right_text: str | None = None,
+    ):
+        """
+        Append a top-level list section heading. Add a small spacer above it
+        when it is not the first section in the list. Optionally show a
+        secondary label on the right side of the same row.
+
+        :param model: context list model
+        :param translation_key: translation key for the section title
+        :param right_text: optional right-aligned text (e.g. first Recent date section)
+        """
+        if model.rowCount() > 0:
+            spacer = SectionItem("", group=False)
+            spacer.setSizeHint(QtCore.QSize(0, self._list_section_top_spacing))
+            model.appendRow(spacer)
+        model.appendRow(self.build_list_section(translation_key, right_text=right_text))
+
+    def build_list_section(
+        self,
+        translation_key: str,
+        right_text: str | None = None,
+    ) -> SectionItem:
+        """
+        Build a top-level list section heading using the same visual style
+        as date separators, but aligned to the left.
+
+        :param translation_key: translation key for the section title
+        :param right_text: optional right-aligned text shown in the same row
+        :return: SectionItem
+        """
+        section = SectionItem(
+            trans(translation_key),
+            group=False,
+            right_text=right_text,
+        )
+        section.setTextAlignment(QtCore.Qt.AlignLeft)
+        return section
 
     def build_date_section(self, dt: str, group: bool = False) -> SectionItem:
         """
