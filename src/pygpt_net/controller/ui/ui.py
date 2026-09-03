@@ -46,7 +46,6 @@ class UI:
         self.splitter_output_size_input = None
         self.splitter_output_size_files = None
 
-        self._last_ctx_string = None
         self._last_input_string = None
         self._last_chat_model = None
         self._last_chat_label = None
@@ -179,15 +178,10 @@ class UI:
         raw_text = ui_nodes['input'].toPlainText()
         prompt = raw_text.strip()
 
-        input_tokens, system_tokens, extra_tokens, ctx_tokens, ctx_len, ctx_len_all, \
+        input_tokens, system_tokens, extra_tokens, ctx_tokens, _, _, \
             sum_tokens, max_current, threshold = self.window.core.tokens.get_current(prompt)
         attachments_tokens = self.window.controller.chat.attachment.get_current_tokens()
         sum_tokens += attachments_tokens
-
-        ctx_string = f"{short_num(ctx_len)} / {short_num(ctx_len_all)} - {short_num(ctx_tokens)} {trans('ctx.tokens')}"
-        if ctx_string != self._last_ctx_string:
-            ui_nodes['prompt.context'].setText(ctx_string)
-            self._last_ctx_string = ctx_string
 
         if max_current > 0:
             max_str = short_num(max_current)

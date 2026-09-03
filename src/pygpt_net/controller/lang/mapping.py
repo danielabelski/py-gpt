@@ -423,7 +423,6 @@ class Mapping:
         dialog_title['tool.indexer'] = 'tool.indexer.title'
 
         tooltips = {}
-        tooltips['prompt.context'] = 'tip.tokens.ctx'
         tooltips['input.counter'] = 'tip.tokens.input'
         tooltips['inline.vision'] = 'vision.checkbox.tooltip'
         tooltips['cmd.enabled'] = 'cmd.tip'

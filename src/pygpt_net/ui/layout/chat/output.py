@@ -112,10 +112,6 @@ class Output:
         nodes['output.raw'] = QCheckBox(trans('output.raw'))
         nodes['output.raw'].toggled.connect(ctrl.chat.common.toggle_raw)
 
-        nodes['prompt.context'] = ChatStatusLabel("")
-        nodes['prompt.context'].setToolTip(trans('tip.tokens.ctx'))
-        nodes['prompt.context'].setSizePolicy(min_policy)
-
         nodes['input.counter'] = ChatStatusLabel("")
         nodes['input.counter'].setToolTip(trans('tip.tokens.input'))
         nodes['input.counter'].setWordWrap(False)
@@ -164,8 +160,6 @@ class Output:
         right_bar_layout.addWidget(nodes['chat.label'])
         right_bar_layout.addSpacing(12)
         right_bar_layout.addWidget(nodes['chat.model'])
-        right_bar_layout.addSpacing(12)
-        right_bar_layout.addWidget(nodes['prompt.context'])
         right_bar_layout.addSpacing(12)
         right_bar_layout.addWidget(nodes['input.counter'])
         right_bar_layout.setContentsMargins(0, 8, 20, 0)
