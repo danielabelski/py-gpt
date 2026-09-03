@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2.8.7 (2026-09-04)
+
+- Improved Painter with new drawing modes: **Free**, **Arrow**, **Rectangle**, **Circle**, and **Line**, making it faster and easier to annotate images and screenshots with common shapes and symbols.
+- Improved UI consistency by simplifying selected icons, labels, and controls across the application.
+- Fixed and refined UI translations, descriptions, and tooltips for improved clarity and consistency.
+
 ## 2.8.6 (2026-09-03)
 
 - Added tool-chain grouping in the chat view, combining consecutive tool calls into a single expandable group.

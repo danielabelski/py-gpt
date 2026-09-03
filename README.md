@@ -2,7 +2,7 @@
 
 [![pygpt](https://snapcraft.io/pygpt/badge.svg)](https://snapcraft.io/pygpt)
 
-Release: **2.8.6** | build: **2026-09-03** | Python: **>=3.10, <3.14**
+Release: **2.8.7** | build: **2026-09-04** | Python: **>=3.10, <3.14**
 
 > Official website: https://pygpt.net | [Documentation](https://pygpt.readthedocs.io) | [Discord](https://pygpt.net/discord)
 > 
@@ -3229,6 +3229,12 @@ may consume additional tokens that are not displayed in the main window.
 # CHANGELOG
 
 ## Recent changes:
+
+**2.8.7 (2026-09-04)**
+
+- Improved Painter with new drawing modes: **Free**, **Arrow**, **Rectangle**, **Circle**, and **Line**, making it faster and easier to annotate images and screenshots with common shapes and symbols.
+- Improved UI consistency by simplifying selected icons, labels, and controls across the application.
+- Fixed and refined UI translations, descriptions, and tooltips for improved clarity and consistency.
 
 **2.8.6 (2026-09-03)**
 
