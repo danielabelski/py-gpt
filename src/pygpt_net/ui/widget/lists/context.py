@@ -71,10 +71,12 @@ class ContextList(BaseList):
             self._icons['add'],
         ))
 
-        # Project-row hover action. The delegate replaces the context counter
-        # with add.svg while the pointer is over a project row. Mouse tracking
-        # is required so this also updates when no mouse button is pressed.
+        # Hover actions. The delegate replaces the project context counter with
+        # add.svg on project rows and shows add.svg on actionable section
+        # headers (Projects / Recent). Mouse tracking is required so these
+        # states update without a pressed mouse button.
         self._hover_group_index: QPersistentModelIndex | None = None
+        self._hover_section_action_index: QPersistentModelIndex | None = None
         self.setMouseTracking(True)
         try:
             self.viewport().setMouseTracking(True)
@@ -596,6 +598,16 @@ class ContextList(BaseList):
         it = self._model.itemFromIndex(index)
         return bool(isinstance(it, GroupItem))
 
+    def _is_section_action_index(self, index: QtCore.QModelIndex) -> bool:
+        """Return True if index points to an actionable top-level section row."""
+        try:
+            if not index.isValid() or index.parent().isValid():
+                return False
+            item = self._model.itemFromIndex(index)
+            return isinstance(item, SectionItem) and bool(getattr(item, 'action', None))
+        except Exception:
+            return False
+
     def _can_toggle_with_ctrl(self, index: QtCore.QModelIndex) -> bool:
         """
         Returns True if Ctrl-toggle on the given index would not mix selection types.
@@ -784,9 +796,18 @@ class ContextList(BaseList):
             return self._same_index(QPersistentModelIndex(cursor_index), index)
         return False
 
+    def is_section_action_hovered(self, index: QtCore.QModelIndex) -> bool:
+        """Return True when the pointer currently hovers an actionable section row."""
+        cursor_index = self._index_under_cursor()
+        if cursor_index.isValid() and self._is_section_action_index(cursor_index):
+            return self._same_index(QPersistentModelIndex(cursor_index), index)
+        return False
+
     def _refresh_hover_from_cursor(self):
         """Synchronize cached hover state with the current physical cursor position."""
-        self._set_hover_group_index(self._index_under_cursor())
+        index = self._index_under_cursor()
+        self._set_hover_group_index(index)
+        self._set_hover_section_action_index(index)
 
     def _repaint_index(self, index):
         """Request repaint only for the supplied row when it is still valid."""
@@ -823,6 +844,31 @@ class ContextList(BaseList):
         self._hover_group_index = None
         self._repaint_index(old_index)
 
+    def _set_hover_section_action_index(self, index: QtCore.QModelIndex):
+        """Update the hovered actionable section and repaint old/new rows."""
+        new_index = None
+        if index.isValid() and self._is_section_action_index(index):
+            new_index = QPersistentModelIndex(index)
+
+        if new_index is not None:
+            if self._same_index(self._hover_section_action_index, index):
+                return
+        elif self._hover_section_action_index is None:
+            return
+
+        old_index = self._hover_section_action_index
+        self._hover_section_action_index = new_index
+        self._repaint_index(old_index)
+        self._repaint_index(new_index)
+
+    def _clear_hover_section_action(self):
+        """Clear section-header hover action state."""
+        if self._hover_section_action_index is None:
+            return
+        old_index = self._hover_section_action_index
+        self._hover_section_action_index = None
+        self._repaint_index(old_index)
+
     def _group_add_rect(self, index: QtCore.QModelIndex) -> QtCore.QRect:
         """Return the clickable add-icon rectangle for a project row."""
         if not index.isValid() or not self._is_group_index(index):
@@ -834,6 +880,44 @@ class ContextList(BaseList):
         except Exception:
             pass
         return QtCore.QRect()
+
+    def _section_add_rect(self, index: QtCore.QModelIndex) -> QtCore.QRect:
+        """Return the clickable add-icon rectangle for an actionable section row."""
+        if not index.isValid() or not self._is_section_action_index(index):
+            return QtCore.QRect()
+        try:
+            delegate = self.itemDelegate()
+            if hasattr(delegate, 'section_add_rect'):
+                return delegate.section_add_rect(self.visualRect(index))
+        except Exception:
+            pass
+        return QtCore.QRect()
+
+    def _handle_section_add_click(self, index: QtCore.QModelIndex, pos: QtCore.QPoint) -> bool:
+        """Run the add action exposed by a Projects/Recent section header."""
+        if not index.isValid() or not self._is_section_action_index(index):
+            return False
+        if not self.is_section_action_hovered(index):
+            return False
+        if not self._section_add_rect(index).contains(pos):
+            return False
+
+        try:
+            item = self._model.itemFromIndex(index)
+            action = getattr(item, 'action', None)
+            if action == 'new_project':
+                self.window.controller.ctx.new_group()
+            elif action == 'new_context':
+                # Always create outside a project, even if the controller still
+                # remembers a previously active project.
+                self.window.controller.ctx.new_ungrouped()
+            else:
+                return False
+
+            QtCore.QTimer.singleShot(0, self._refresh_hover_from_cursor)
+            return True
+        except Exception:
+            return False
 
     def _handle_group_add_click(self, index: QtCore.QModelIndex, pos: QtCore.QPoint) -> bool:
         """Create a new context in a project when its hover add icon is clicked."""
@@ -867,6 +951,12 @@ class ContextList(BaseList):
         if event.button() == Qt.LeftButton:
             pos = self._event_pos_to_point(event)
             index = self.indexAt(pos)
+
+            # Section-header add icons are independent actions. Consume the
+            # click before normal item-view handling.
+            if self._handle_section_add_click(index, pos):
+                event.accept()
+                return
 
             # The project-row add icon is an independent action. Consume the
             # click here so the ordinary row click does not toggle/collapse the
@@ -1022,14 +1112,16 @@ class ContextList(BaseList):
 
     def mouseMoveEvent(self, event):
         """
-        Update project-row hover action and handle manual multi-item drag start.
+        Update row/header hover actions and handle manual multi-item drag start.
         """
         pos = self._event_pos_to_point(event)
 
         # Keep hover active also while the mouse button is pressed. Previously
         # any tiny movement during a click cleared the hover state and the count
         # came back until the next no-button mouseMoveEvent.
-        self._set_hover_group_index(self.indexAt(pos))
+        hover_index = self.indexAt(pos)
+        self._set_hover_group_index(hover_index)
+        self._set_hover_section_action_index(hover_index)
 
         try:
             if (event.buttons() & Qt.LeftButton) and self._drag_pending_from_multi and not self._is_group_index(self._drag_press_index or QtCore.QModelIndex()):
@@ -1044,8 +1136,9 @@ class ContextList(BaseList):
         super().mouseMoveEvent(event)
 
     def leaveEvent(self, event):
-        """Restore project counters when the pointer leaves the context list."""
+        """Restore normal row/header content when the pointer leaves the list."""
         self._clear_hover_group()
+        self._clear_hover_section_action()
         super().leaveEvent(event)
 
     def mouseReleaseEvent(self, event):
@@ -1923,6 +2016,10 @@ class ImportantItemDelegate(QtWidgets.QStyledItemDelegate):
         icon_y = row_rect.top() + (row_rect.height() - size) // 2
         return QtCore.QRect(icon_x, icon_y, size, size)
 
+    def section_add_rect(self, row_rect: QtCore.QRect) -> QtCore.QRect:
+        """Return the add.svg paint/hit-test rectangle for a section header."""
+        return self.group_add_rect(row_rect)
+
     def _init_group_indicator_from_config(self):
         """
         Initialize group indicator settings from config if available.
@@ -2012,6 +2109,42 @@ class ImportantItemDelegate(QtWidgets.QStyledItemDelegate):
             item = model.itemFromIndex(index) if hasattr(model, "itemFromIndex") else None
         except Exception:
             item = None
+
+        if isinstance(item, SectionItem) and item.action:
+            view = self.parent()
+            is_hovered = False
+            try:
+                is_hovered = bool(
+                    view is not None
+                    and view.is_section_action_hovered(index)
+                )
+            except Exception:
+                is_hovered = False
+
+            # Actionable headers without secondary text (e.g. Projects) must
+            # use the *same* paint path both before and during hover. Switching
+            # from Qt's default delegate painting to our custom action painter
+            # changes the text baseline by a pixel with some styles, which made
+            # the header visibly jump when add.svg appeared.
+            if not item.right_text:
+                self._paint_action_section(
+                    painter,
+                    option,
+                    index,
+                    item,
+                    show_icon=is_hovered,
+                )
+                return
+
+            if is_hovered:
+                self._paint_action_section(
+                    painter,
+                    option,
+                    index,
+                    item,
+                    show_icon=True,
+                )
+                return
 
         if isinstance(item, SectionItem) and item.right_text:
             self._paint_split_section(painter, option, index, item)
@@ -2210,6 +2343,57 @@ class ImportantItemDelegate(QtWidgets.QStyledItemDelegate):
 
                 painter.restore()
 
+    def _paint_action_section(
+            self,
+            painter,
+            option,
+            index,
+            item,
+            show_icon: bool = True,
+    ):
+        """
+        Paint an actionable section header with stable title geometry.
+
+        For headers without secondary text (e.g. Projects) this painter is used
+        in both normal and hover states so the title baseline cannot change when
+        add.svg appears. For headers with right-side text (e.g. Recent), hover
+        replaces that text with add.svg.
+        """
+        opt = QtWidgets.QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+
+        # Keep the section title in exactly the same visual position as in
+        # the non-hovered state. Some Qt styles/stylesheets alter item text
+        # padding for State_MouseOver, which otherwise makes e.g. "Projects"
+        # jump by a pixel when the add icon appears. The icon itself is
+        # painted separately, so the native hover state is not needed here.
+        opt.state &= ~QtWidgets.QStyle.State_MouseOver
+
+        action_rect = self.section_add_rect(option.rect)
+        if not action_rect.isValid():
+            super(ImportantItemDelegate, self).paint(painter, opt, index)
+            return
+
+        reserve = max(
+            0,
+            option.rect.right() - action_rect.left() + 1 + self._group_count_left_gap,
+        )
+        if reserve > 0:
+            opt.rect = opt.rect.adjusted(0, 0, -reserve, 0)
+
+        opt.text = item.title
+        opt.displayAlignment = QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter
+
+        style = opt.widget.style() if opt.widget is not None else QtWidgets.QApplication.style()
+        style.drawControl(
+            QtWidgets.QStyle.CE_ItemViewItem,
+            opt,
+            painter,
+            opt.widget,
+        )
+        if show_icon:
+            self._add_icon.paint(painter, action_rect, QtCore.Qt.AlignCenter)
+
     def _paint_split_section(self, painter, option, index, item):
         """
         Paint a section row with a full left title and a right label.
@@ -2321,11 +2505,18 @@ class Item(QStandardItem):
 
 
 class SectionItem(QStandardItem):
-    def __init__(self, title, group: bool = False, right_text: str | None = None):
+    def __init__(
+            self,
+            title,
+            group: bool = False,
+            right_text: str | None = None,
+            action: str | None = None,
+    ):
         super().__init__(title)
         self.title = title
         self.group = group
         self.right_text = right_text
+        self.action = action
         self.setSelectable(False)
         self.setEnabled(False)
         self.setTextAlignment(QtCore.Qt.AlignRight)

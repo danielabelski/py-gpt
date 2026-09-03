@@ -34,8 +34,7 @@ class CtxList:
         self._group_separators = False
         self._pinned_separators = False
         self._list_section_top_spacing = 12
-        # Show "Recent" and its first date separator in one row.
-        # Set to False to restore separate rows.
+        self._list_section_row_height = 28
         self._recent_section_inline_date = True
 
         # Cached icons for closed/open folder states
@@ -235,6 +234,7 @@ class CtxList:
                         model,
                         'ctx.list.section.recent',
                         right_text=item.dt if inline_first_date else None,
+                        action='new_context',
                     )
                 if self._group_separators and (not item.isPinned or self._pinned_separators):
                     if not inline_first_date and (i == 0 or last_dt_str != item.dt):
@@ -306,7 +306,11 @@ class CtxList:
                 continue
 
             if not section_added:
-                self.append_list_section(model, 'ctx.list.section.projects')
+                self.append_list_section(
+                    model,
+                    'ctx.list.section.projects',
+                    action='new_project',
+                )
                 section_added = True
 
             # Display only the group name; the counter is drawn by delegate on the right
@@ -422,6 +426,7 @@ class CtxList:
         model: QStandardItemModel,
         translation_key: str,
         right_text: str | None = None,
+        action: str | None = None,
     ):
         """
         Append a top-level list section heading. Add a small spacer above it
@@ -431,17 +436,23 @@ class CtxList:
         :param model: context list model
         :param translation_key: translation key for the section title
         :param right_text: optional right-aligned text (e.g. first Recent date section)
+        :param action: optional hover action handled by ContextList
         """
         if model.rowCount() > 0:
             spacer = SectionItem("", group=False)
             spacer.setSizeHint(QtCore.QSize(0, self._list_section_top_spacing))
             model.appendRow(spacer)
-        model.appendRow(self.build_list_section(translation_key, right_text=right_text))
+        model.appendRow(self.build_list_section(
+            translation_key,
+            right_text=right_text,
+            action=action,
+        ))
 
     def build_list_section(
         self,
         translation_key: str,
         right_text: str | None = None,
+        action: str | None = None,
     ) -> SectionItem:
         """
         Build a top-level list section heading using the same visual style
@@ -449,14 +460,21 @@ class CtxList:
 
         :param translation_key: translation key for the section title
         :param right_text: optional right-aligned text shown in the same row
+        :param action: optional hover action handled by ContextList
         :return: SectionItem
         """
         section = SectionItem(
             trans(translation_key),
             group=False,
             right_text=right_text,
+            action=action,
         )
         section.setTextAlignment(QtCore.Qt.AlignLeft)
+        if action:
+            # Projects/Recent swap right-side content on hover. Reserve an
+            # explicit row height in the model so showing add.svg can never
+            # change the row geometry or the vertically centered title.
+            section.setSizeHint(QtCore.QSize(0, self._list_section_row_height))
         return section
 
     def build_date_section(self, dt: str, group: bool = False) -> SectionItem:
