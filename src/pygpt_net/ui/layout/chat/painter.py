@@ -6,11 +6,11 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.09.02 15:00:00                  #
+# Updated Date: 2026.09.03 14:23:00                  #
 # ================================================== #
 
 from PySide6.QtGui import QPixmap, QIcon
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QRadioButton, QPushButton, QComboBox, QScrollArea
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QRadioButton, QPushButton, QComboBox, QScrollArea, QLabel
 from PySide6.QtCore import QSize
 
 from pygpt_net.ui.widget.draw.painter import PainterWidget
@@ -148,6 +148,13 @@ class Painter:
                 cb.setCurrentText("100%")
                 nodes[key] = cb
 
+        key = 'painter.icon.zoom'
+        if nodes.get(key) is None:
+            label = QLabel()
+            label.setPixmap(QIcon(":/icons/zoom_in.svg").pixmap(QSize(16, 16)))
+            label.setFixedSize(QSize(16, 16))
+            nodes[key] = label
+
         self._initialized = True
 
     def setup(self) -> QWidget:
@@ -176,24 +183,25 @@ class Painter:
         top.addWidget(nodes['painter.select.brush.size'])
         top.addWidget(nodes['painter.select.brush.color'])
         top.addWidget(nodes['painter.select.canvas.size'])
-        # Zoom combo placed right after canvas size
+        # Zoom icon + combo placed right after canvas size
+        top.addWidget(nodes['painter.icon.zoom'])
         top.addWidget(nodes['painter.select.zoom'])
         top.addStretch(1)
 
         if nodes.get('painter.btn.capture') is None:
-            btn = QPushButton(trans('painter.btn.capture'))
+            btn = QPushButton(QIcon(":/icons/attachment.svg"), trans('painter.btn.capture'))
             btn.clicked.connect(self.window.controller.painter.capture.use)
             nodes['painter.btn.capture'] = btn
         top.addWidget(nodes['painter.btn.capture'])
 
         if nodes.get('painter.btn.camera.capture') is None:
-            btn = QPushButton(trans('painter.btn.camera.capture'))
+            btn = QPushButton(QIcon(":/icons/camera.svg"), trans('painter.btn.camera.capture'))
             btn.clicked.connect(self.window.controller.painter.capture.camera)
             nodes['painter.btn.camera.capture'] = btn
         top.addWidget(nodes['painter.btn.camera.capture'])
 
         if nodes.get('painter.btn.clear') is None:
-            btn = QPushButton(trans('painter.btn.clear'))
+            btn = QPushButton(QIcon(":/icons/close.svg"), trans('painter.btn.clear'))
             btn.clicked.connect(ui.painter.clear_image)
             nodes['painter.btn.clear'] = btn
         top.addWidget(nodes['painter.btn.clear'])

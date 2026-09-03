@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.03 14:25:00                  #
+# Updated Date: 2026.09.03 14:23:00                  #
 # ================================================== #
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon
@@ -70,6 +70,7 @@ class Model:
         nodes['prompt.model.settings'].setFixedSize(icon_size, icon_size)
         nodes['prompt.model.settings'].setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         nodes['prompt.model.settings'].setFocusPolicy(Qt.NoFocus)
+        nodes['prompt.model.settings'].setToolTip(trans('toolbox.model.edit.tooltip'))
         nodes['prompt.model.settings'].clicked.connect(self._open_settings)
 
         model_cols = QHBoxLayout()

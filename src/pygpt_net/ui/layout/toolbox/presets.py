@@ -7,7 +7,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.09.26 13:30:00                  #
+# Updated Date: 2026.09.03 14:23:00                  #
 # ================================================== #
 
 from PySide6 import QtCore
@@ -59,6 +59,7 @@ class Presets:
         nodes = self.window.ui.nodes
 
         nodes['preset.presets.new'] = QPushButton(QIcon(":/icons/add.svg"), "")
+        nodes['preset.presets.new'].setToolTip(trans('toolbox.presets.add.tooltip'))
         nodes['preset.presets.new'].clicked.connect(
             lambda _=False: self.window.controller.presets.editor.edit()
         )

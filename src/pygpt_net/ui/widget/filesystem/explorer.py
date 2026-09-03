@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.02.05 03:00:00                  #
+# Updated Date: 2026.09.03 14:23:00                  #
 # ================================================== #
 
 import datetime
@@ -615,7 +615,7 @@ class FileExplorer(QWidget):
 
         header = QHBoxLayout()
 
-        self.btn_open = QPushButton(trans('action.open'))
+        self.btn_open = QPushButton(QIcon(":/icons/folder.svg"), trans('action.open'))
         self.btn_open.setMaximumHeight(40)
         self.btn_open.clicked.connect(
                 lambda: self.action_open(self.directory)

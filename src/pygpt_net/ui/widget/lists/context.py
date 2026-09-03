@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.03 14:05:00                  #
+# Updated Date: 2026.09.03 14:23:00                  #
 # ================================================== #
 
 import datetime
@@ -1280,6 +1280,49 @@ class ContextList(BaseList):
             # Fall back to default behavior on any error
             self._drag_pending_from_multi = False
         super().mouseMoveEvent(event)
+
+    def viewportEvent(self, event):
+        """Show add-action tooltips only when the pointer is over add.svg itself."""
+        if event.type() == QtCore.QEvent.ToolTip:
+            pos = self._event_pos_to_point(event)
+            index = self.indexAt(pos)
+            tooltip = None
+            tooltip_rect = QtCore.QRect()
+
+            if index.isValid():
+                if self._is_group_index(index):
+                    tooltip_rect = self._group_add_rect(index)
+                    if tooltip_rect.contains(pos):
+                        tooltip = trans('ctx.add.new_context.tooltip')
+                elif self._is_section_action_index(index) and not self.is_section_collapsed(index):
+                    tooltip_rect = self._section_add_rect(index)
+                    if tooltip_rect.contains(pos):
+                        try:
+                            item = self._model.itemFromIndex(index)
+                            action = getattr(item, 'action', None)
+                            if action == 'new_project':
+                                tooltip = trans('ctx.add.new_project.tooltip')
+                            elif action == 'new_context':
+                                tooltip = trans('ctx.add.new_context.tooltip')
+                        except Exception:
+                            tooltip = None
+
+            if tooltip:
+                try:
+                    global_pos = event.globalPosition().toPoint()
+                except Exception:
+                    global_pos = QtGui.QCursor.pos()
+                QtWidgets.QToolTip.showText(
+                    global_pos,
+                    tooltip,
+                    self.viewport(),
+                    tooltip_rect,
+                )
+                return True
+
+            QtWidgets.QToolTip.hideText()
+
+        return super().viewportEvent(event)
 
     def leaveEvent(self, event):
         """Restore normal row/header content when the pointer leaves the list."""
