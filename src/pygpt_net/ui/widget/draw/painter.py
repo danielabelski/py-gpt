@@ -123,7 +123,7 @@ class PainterWidget(QWidget):
         self._act_open = QAction(QIcon(":/icons/folder_filled.svg"), trans('action.open'), self)
         self._act_open.triggered.connect(self.action_open)
 
-        self._act_capture = QAction(QIcon(":/icons/fullscreen.svg"), trans('painter.btn.capture'), self)
+        self._act_capture = QAction(QIcon(":/icons/attachment.svg"), trans('painter.btn.capture'), self)
         self._act_capture.triggered.connect(self.action_capture)
 
         self._act_save = QAction(QIcon(":/icons/save.svg"), trans('img.action.save'), self)
