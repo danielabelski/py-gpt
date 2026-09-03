@@ -2,7 +2,7 @@
 
 [![pygpt](https://snapcraft.io/pygpt/badge.svg)](https://snapcraft.io/pygpt)
 
-Release: **2.8.5** | build: **2026-09-02** | Python: **>=3.10, <3.14**
+Release: **2.8.6** | build: **2026-09-03** | Python: **>=3.10, <3.14**
 
 > Official website: https://pygpt.net | [Documentation](https://pygpt.readthedocs.io) | [Discord](https://pygpt.net/discord)
 > 
@@ -3229,6 +3229,17 @@ may consume additional tokens that are not displayed in the main window.
 # CHANGELOG
 
 ## Recent changes:
+
+**2.8.6 (2026-09-03)**
+
+- Added tool-chain grouping in the chat view, combining consecutive tool calls into a single expandable group.
+- Improved the context list UI: added section headers, added **New context** / **New project** actions directly to section rows, added support for collapsing and expanding sections, improved section interaction and layout.
+- Renamed **Groups** to **Projects** throughout the application.
+- Fixed toolbox minimum-width calculation to prevent individual modes or controls from unexpectedly expanding the toolbox.
+- Added new UI icons and tooltips for improved usability and consistency.
+- Added a visual screen flash / blink effect after screenshot and camera capture.
+- Fixed math rendering of < and > symbols in KaTeX expressions.
+- Fixed rendering of the \neq / \ne math symbols - issue #199.
 
 **2.8.5 (2026-09-02)**
 
