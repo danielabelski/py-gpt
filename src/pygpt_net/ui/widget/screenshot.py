@@ -6,12 +6,61 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.02 19:30:00                  #
+# Updated Date: 2026.09.03 14:55:00                  #
 # ================================================== #
 
-from PySide6.QtCore import Qt, QPoint, QRect, Signal
+from PySide6.QtCore import Qt, QPoint, QRect, Signal, QTimer
 from PySide6.QtGui import QColor, QCursor, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QWidget
+
+
+class ScreenshotFlash(QWidget):
+    """Short non-interactive fullscreen flash shown after a screenshot is captured."""
+
+    def __init__(self, screen=None):
+        flags = (
+            Qt.FramelessWindowHint
+            | Qt.WindowStaysOnTopHint
+            | Qt.Tool
+            | Qt.WindowDoesNotAcceptFocus
+            | Qt.WindowTransparentForInput
+        )
+        super().__init__(None, flags)
+
+        self.screen = screen or QApplication.primaryScreen()
+        self.screen_geometry = QRect(self.screen.geometry()) if self.screen is not None else QRect()
+        self._alpha = 90
+
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
+        self.setAttribute(Qt.WA_DeleteOnClose, True)
+
+    def show_flash(self):
+        """Show a brief camera-like white flash without taking focus."""
+        if self.screen is None or self.screen_geometry.isNull():
+            self.close()
+            return
+
+        self.setGeometry(self.screen_geometry)
+        self.show()
+        self.raise_()
+
+        QTimer.singleShot(45, lambda: self._set_alpha(45))
+        QTimer.singleShot(90, lambda: self._set_alpha(18))
+        QTimer.singleShot(140, self.close)
+
+    def _set_alpha(self, alpha: int):
+        """Update flash opacity while fading out."""
+        if not self.isVisible():
+            return
+        self._alpha = alpha
+        self.update()
+
+    def paintEvent(self, event):
+        """Paint the fullscreen white flash."""
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(255, 255, 255, self._alpha))
+        painter.end()
 
 
 class ScreenRegionSelector(QWidget):

@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.02 19:30:00                  #
+# Updated Date: 2026.09.03 15:05:00                  #
 # ================================================== #
 
 import datetime
@@ -35,18 +35,21 @@ class Capture:
         """
         self.window = window
 
-    def camera(self):
-        """Get image from camera"""
+    def camera(self, show_flash: bool = True):
+        """Get image from camera and put it on the Painter canvas."""
         if not self.window.controller.camera.is_enabled():
             self.window.controller.camera.enable_capture()
             self.window.controller.camera.setup_ui()
         frame = self.window.controller.camera.get_current_frame(False)
         if frame is None:
-            return
+            return False
         height, width, channel = frame.shape
         bytes = 3 * width
         image = QImage(frame.data, width, height, bytes, QImage.Format_RGB888)
         self.window.ui.painter.set_image(image)
+        if show_flash:
+            self.window.ui.tray.show_capture_flash()
+        return True
 
     def capture_screen_with_custom_cursor(self, save_path: str) -> str:
         """

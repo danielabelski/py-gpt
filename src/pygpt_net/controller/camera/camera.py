@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.08.23 15:00:00                  #
+# Updated Date: 2026.09.03 15:05:00                  #
 # ================================================== #
 
 import datetime
@@ -103,11 +103,16 @@ class Camera(QObject):
         :param force: force capture even if auto is enabled
         """
         if not self.is_auto() or force:
-            if not self.capture_frame(True):
+            captured = self.capture_frame(True)
+            if not captured:
                 event = KernelEvent(KernelEvent.STATE_ERROR, {
                     'msg': trans("vision.capture.manual.captured.error"),
                 })
                 self.window.dispatch(event)
+            else:
+                # Visual feedback only for an explicit/manual camera shot.
+                # Auto-capture must remain silent to avoid unsolicited flashing.
+                self.window.ui.tray.show_capture_flash()
         else:
             event = KernelEvent(KernelEvent.STATUS, {
                 'status': trans('vision.capture.auto.click'),
@@ -203,7 +208,7 @@ class Camera(QObject):
                 int(self.window.core.config.get('vision.capture.quality'))
             ]
             frame = self.get_current_frame()
-            self.window.controller.painter.capture.camera()  # capture to draw
+            self.window.controller.painter.capture.camera(show_flash=False)  # capture to draw
 
             cv2.imwrite(path, frame, compression_params)
             mode = self.window.core.config.get('mode')

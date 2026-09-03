@@ -6,17 +6,20 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.02 19:30:00                  #
+# Updated Date: 2026.09.03 14:55:00                  #
 # ================================================== #
 
-from PySide6.QtGui import QAction, QIcon
-from PySide6.QtWidgets import QSystemTrayIcon, QMenu
+from PySide6.QtCore import QTimer
+from PySide6.QtGui import QAction, QCursor, QIcon
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 
-from pygpt_net.ui.widget.screenshot import ScreenRegionSelector
+from pygpt_net.ui.widget.screenshot import ScreenRegionSelector, ScreenshotFlash
 from pygpt_net.utils import trans
 
 
 class Tray:
+    REGION_CAPTURE_HIDE_DELAY_MS = 75
+
     def __init__(self, window=None):
         """
         Tray icon setup
@@ -27,6 +30,7 @@ class Tray:
         self.is_tray = False
         self.icon = None
         self.region_selector = None
+        self.screenshot_flash = None
 
     def set_icon(self, state: str):
         """
@@ -153,8 +157,10 @@ class Tray:
         self.window.controller.plugins.settings.open_plugin('crontab')
 
     def make_screenshot(self):
-        """Make a full-screen screenshot."""
-        self.window.controller.painter.capture.screenshot()
+        """Make a full-screen screenshot and show a short capture flash."""
+        path = self.window.controller.painter.capture.screenshot()
+        if path:
+            self.show_capture_flash(0)
         self.window.restore()
         self.window.controller.chat.common.focus_input()
 
@@ -177,15 +183,57 @@ class Tray:
         selector.show_selector()
 
     def make_region_screenshot(self, region, screen_geometry, screen_index: int = 0):
-        """Capture the selected region, then restore the application."""
+        """Capture the selected region after the selector overlay leaves the compositor."""
         self.region_selector = None
-        self.window.controller.painter.capture.screenshot_region(
+
+        # QWidget.hide() + processEvents() removes the selector from Qt immediately,
+        # but the desktop compositor can still expose its previous frame for a short
+        # moment. Defer the real screen grab by a few frames so the selection border
+        # and dimming overlay cannot leak into the captured image.
+        QTimer.singleShot(
+            self.REGION_CAPTURE_HIDE_DELAY_MS,
+            lambda: self._capture_region_screenshot(region, screen_geometry, screen_index),
+        )
+
+    def _capture_region_screenshot(self, region, screen_geometry, screen_index: int = 0):
+        """Perform the deferred region capture and restore the application."""
+        path = self.window.controller.painter.capture.screenshot_region(
             region,
             screen_geometry,
             screen_index=screen_index,
         )
+        if path:
+            self.show_capture_flash(screen_index)
         self.window.restore()
         self.window.controller.chat.common.focus_input()
+
+    def show_capture_flash(self, screen_index: int = None):
+        """Show a brief fullscreen camera-like flash after a successful capture."""
+        screens = QApplication.screens()
+        if not screens:
+            return
+
+        if screen_index is None:
+            screen = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
+        else:
+            if screen_index < 0 or screen_index >= len(screens):
+                screen_index = 0
+            screen = screens[screen_index]
+
+        if screen is None:
+            return
+
+        flash = ScreenshotFlash(screen)
+        self.screenshot_flash = flash
+        flash.destroyed.connect(
+            lambda _=None, current=flash: self._clear_capture_flash(current)
+        )
+        flash.show_flash()
+
+    def _clear_capture_flash(self, flash):
+        """Clear the current flash reference without clobbering a newer flash."""
+        if self.screenshot_flash is flash:
+            self.screenshot_flash = None
 
     def cancel_region_screenshot(self):
         """Clear region selector state after cancellation."""
@@ -227,20 +275,3 @@ class Tray:
         action = self.window.ui.tray_menu.get('scheduled')
         if action and action.isVisible():
             action.setVisible(False)
-
-    def update_schedule_tasks(self, tasks: int = 0):
-        """
-        Update scheduled jobs number
-
-        :param tasks: Number of scheduled tasks
-        """
-        if not self.is_tray:
-            return
-        if tasks > 0:
-            action = self.window.ui.tray_menu['scheduled']
-            info = f"{trans('menu.tray.scheduled')}: {tasks}"
-            if action.text() != info:
-                action.setText(info)
-            self.show_schedule_menu()
-        else:
-            self.hide_schedule_menu()
