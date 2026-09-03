@@ -207,11 +207,11 @@ The options below mirror the current application settings defined in ``settings.
 
 * ``Context auto-summary``: Enable automatic summarization of the context on the conversation list on the left. Default: True.
 
-* ``Show context groups on top of the context list``: Displays context groups at the top of the context list. Default: True.
+* ``Show projects on top of the context list``: Displays projects at the top of the context list. Default: True.
 
 * ``Show date separators on the context list``: Shows date separators on the context list. Default: True.
 
-* ``Show date separators in groups on the context list``: Shows date separators inside context groups. Default: True.
+* ``Show date separators in projects on the context list``: Shows date separators inside projects. Default: True.
 
 * ``Show date separators in pinned items on the context list``: Shows date separators for pinned context items. Default: False.
 

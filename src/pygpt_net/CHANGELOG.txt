@@ -532,7 +532,7 @@
 
 2.6.5 (2025-08-16)
 
-- Fix: crash when creating a context in a new group.
+- Fix: crash when creating a context in a new project.
 - Fix: high CPU usage after switching profiles.
 
 2.6.4 (2025-08-15)
@@ -1107,7 +1107,7 @@
 
 - Fix: Snap permission denied bug.
 - Fix: column focus on tab change.
-- Datetime separators in groups moved to right side.
+- Datetime separators in projects moved to right side.
 
 2.5.2 (2025-02-01)
 
@@ -1201,12 +1201,12 @@
 
 - Enhanced web data loaders.
 - Web loaders have been added to attachments, allowing external web content to be attached to context via the "+Web" button in the Attachments tab.
-- Improved handling of attachments in groups and added an attachment icon when a group contains attachments.
+- Improved handling of attachments in projects and added an attachment icon when a project contains attachments.
 
 2.4.43 (2024-12-15)
 
 - Fix: Bug on attachment upload.
-- Added: Attachments uploaded in groups are now available for all contexts in the group (beta).
+- Added: Attachments uploaded in projects are now available for all contexts in the project (beta).
 
 2.4.42 (2024-12-15)
 
@@ -1562,9 +1562,9 @@ Tip: To use the `RAG` mode, the file must be indexed in the vector database. Thi
 2.2.26 (2024-08-22)
 
 - Added separators for date intervals in the context list.
-- Added a new option: Context -> Show context groups on top of the context list, default: False.
+- Added a new option: Context -> Show projects on top of the context list, default: False.
 - Added a new option: Context -> Show date separators on the context list, default: True.
-- Added a new option: Context -> Show date separators in groups on the context list, default: True.
+- Added a new option: Context -> Show date separators in projects on the context list, default: True.
 
 2.2.25 (2024-08-22)
 
@@ -1837,7 +1837,7 @@ Tip: To use the `RAG` mode, the file must be indexed in the vector database. Thi
 2.1.60 (2024-04-21)
 
 - Fixed "Save as" option in WebEngine view.
-- Added hiding of empty groups on search.
+- Added hiding of empty projects on search.
 - Updated formatting and CSS.
 
 2.1.59 (2024-04-20)
@@ -1858,11 +1858,11 @@ Tip: To use the `RAG` mode, the file must be indexed in the vector database. Thi
 
 2.1.57 (2024-04-17)
 
-- Fixed new ctx create on empty profile if previously group was selected.
+- Fixed new ctx create on empty profile if previously a project was selected.
 
 2.1.56 (2024-04-17)
 
-- Added a new menu option: Clear history + groups.
+- Added a new menu option: Clear history + projects.
 - Improved profile switching.
 
 2.1.55 (2024-04-17)
@@ -1890,23 +1890,23 @@ Tip: To use the `RAG` mode, the file must be indexed in the vector database. Thi
 
 2.1.50 (2024-04-14)
 
-- Fixed selection update after group rename.
+- Fixed selection update after project rename.
 - Added img resolution and filesize info in image preview dialog title.
 - Added filesize info in text editor dialog title.
 
 2.1.49 (2024-04-14)
 
-- Improved context group handling.
+- Improved project handling.
 
 2.1.48 (2024-04-14)
 
 - OpenAI API upgraded to version 1.17.1.
 - Added a stream mode to the Assistant mode (beta).
-- Fixed an issue where context group ID were not copied when duplicating context.
+- Fixed an issue where project ID was not copied when duplicating context.
 
 2.1.47 (2024-04-12)
 
-- Added auto-creating new context in current group if the group is active.
+- Added auto-creating new context in the current project if the project is active.
 - Added sending input also with Ctrl+Enter in Shift+Enter mode.
 - Extended light style markdown CSS.
 
@@ -1942,7 +1942,7 @@ Tip: To use the `RAG` mode, the file must be indexed in the vector database. Thi
 2.1.41 (2024-04-10)
 
 - Added support for multiple profiles (separated config, settings and workdir), menu: Config -> Profile...
-- Added context groups for context items organizing, menu: File -> New context group...
+- Added projects for organizing context items, menu: File -> New project...
 - Added ability to change the model on response edit and regenerate.
 - Added real-time updating number of notepads.
 - UI/theme fixes.

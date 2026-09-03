@@ -1270,7 +1270,7 @@ class Ctx:
 
         self.update()
         self.window.update_status(
-            "Group '{}' created.".format(name)
+            "Project '{}' created.".format(name)
         )
         self.window.ui.dialog['create'].close()
         # self.select_group(id)

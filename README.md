@@ -924,7 +924,7 @@ You can use your own files (for example, to analyze them) during any conversatio
 
 **PyGPT** makes it simple for users to upload files and send them to the model for tasks like analysis, similar to attaching files in `ChatGPT`. There's a separate `Attachments` tab next to the text input area specifically for managing file uploads. 
 
-**Tip: Attachments uploaded in group are available in all contexts in group**.
+**Tip: Attachments uploaded in a project are available in all contexts in that project**.
 
 ![v2_file_input](https://github.com/szczyglis-dev/py-gpt/raw/master/docs/source/images/v2_file_input.png)
 
@@ -2408,11 +2408,11 @@ The options below mirror the current application settings defined in `settings.j
 
 - `Context auto-summary`: Enable automatic summarization of the context on the conversation list on the left. Default: True.
 
-- `Show context groups on top of the context list`: Displays context groups at the top of the context list. Default: False.
+- `Show projects on top of the context list`: Displays projects at the top of the context list. Default: False.
 
 - `Show date separators on the context list`: Shows date separators on the context list. Default: True.
 
-- `Show date separators in groups on the context list`: Shows date separators inside context groups. Default: True.
+- `Show date separators in projects on the context list`: Shows date separators inside projects. Default: True.
 
 - `Show date separators in pinned items on the context list`: Shows date separators for pinned context items. Default: False.
 

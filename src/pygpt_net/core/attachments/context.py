@@ -360,7 +360,7 @@ class Context:
         """
         if self.is_verbose():
             if meta.group:
-                print("Uploading for meta group ID: {}".format(meta.group.id))
+                print("Uploading for project ID: {}".format(meta.group.id))
             else:
                 print("Uploading for meta ID: {}".format(meta.id))
 

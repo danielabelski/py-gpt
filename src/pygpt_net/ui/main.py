@@ -339,7 +339,7 @@ class MainWindow(QMainWindow, QtStyleTools):
         print("Closing...")
         print("Sending terminate signal to all...")
         self.controller.kernel.terminate()
-        print("Saving ctx groups...")
+        print("Saving context and projects...")
         self.controller.ctx.save_all()
         print("Saving tabs...")
         self.core.tabs.save()

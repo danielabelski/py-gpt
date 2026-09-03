@@ -18,7 +18,7 @@ You can use your own files (for example, to analyze them) during any conversatio
 
 
 .. tip::
-   Attachments uploaded in group are available in all contexts in group.
+   Attachments uploaded in a project are available in all contexts in that project.
 
 .. image:: images/v2_file_input.png
    :width: 800
