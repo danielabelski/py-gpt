@@ -28,6 +28,17 @@ class MathRenderer {
 		const scripts = Array.from(scope.querySelectorAll('script[type^="math/tex"]'));
 		const useToString = (typeof katex.renderToString === 'function');
 
+		// Math placeholders are emitted inside <script type="math/tex">. Script
+		// elements are raw-text nodes, so HTML entities produced by escapeHtml()
+		// are not decoded by the HTML parser. Decode exactly the single escaping
+		// layer added by the placeholder renderer before passing TeX to KaTeX.
+		// A callback replacement is intentional: replacements are not scanned
+		// again, so an original literal "&lt;" remains "&lt;" rather than "<".
+		const decodeEscapedMathText = (raw) => String(raw ?? '').replace(
+			/&(amp|lt|gt);/g,
+			(_match, entity) => entity === 'amp' ? '&' : (entity === 'lt' ? '<' : '>')
+		);
+
 		const batchFn = async (script) => {
 			if (!script || !script.isConnected) return;
 			// Only render math in bot messages
@@ -35,7 +46,7 @@ class MathRenderer {
 			const t = script.getAttribute('type') || '';
 			const displayMode = t.indexOf('mode=display') > -1;
 			// avoid innerText (it may trigger layout). textContent is sufficient here.
-			const mathContent = script.textContent || '';
+			const mathContent = decodeEscapedMathText(script.textContent || '');
 			const parent = script.parentNode;
 			if (!parent) return;
 

@@ -77687,7 +77687,7 @@ heduleSoftSnapsh\
 ot(msg, chunkHas\
 NL);\x0a\x09\x09\x09}\x0a\x09\x09}\x0a\x09}\
 \x0a}\
-\x00\x00\x15\xca\
+\x00\x00\x18N\
 /\
 / ==============\
 ================\
@@ -77750,294 +77750,334 @@ x\x22]'));\x0a\x09\x09const \
 useToString = (t\
 ypeof katex.rend\
 erToString === '\
-function');\x0a\x0a\x09\x09c\
-onst batchFn = a\
-sync (script) =>\
- {\x0a\x09\x09\x09if (!scrip\
-t || !script.isC\
-onnected) return\
-;\x0a\x09\x09\x09// Only ren\
-der math in bot \
-messages\x0a\x09\x09\x09if (\
-!script.closest(\
-'.msg-box.msg-bo\
-t')) return;\x0a\x09\x09\x09\
-const t = script\
-.getAttribute('t\
-ype') || '';\x0a\x09\x09\x09\
-const displayMod\
-e = t.indexOf('m\
-ode=display') > \
--1;\x0a\x09\x09\x09// avoid \
-innerText (it ma\
-y trigger layout\
-). textContent i\
-s sufficient her\
-e.\x0a\x09\x09\x09const math\
-Content = script\
-.textContent || \
-'';\x0a\x09\x09\x09const par\
-ent = script.par\
-entNode;\x0a\x09\x09\x09if (\
-!parent) return;\
-\x0a\x0a\x09\x09\x09try {\x0a\x09\x09\x09\x09i\
-f (useToString) \
-{\x0a\x09\x09\x09\x09\x09let html \
-= '';\x0a\x09\x09\x09\x09\x09try {\
-\x0a\x09\x09\x09\x09\x09\x09html = ka\
-tex.renderToStri\
-ng(mathContent, \
-{\x0a\x09\x09\x09\x09\x09\x09\x09display\
-Mode,\x0a\x09\x09\x09\x09\x09\x09\x09thr\
-owOnError: false\
-\x0a\x09\x09\x09\x09\x09\x09});\x0a\x09\x09\x09\x09\x09\
-} catch (_) {\x0a\x09\x09\
-\x09\x09\x09\x09const fb = d\
-isplayMode ? `\x5c\x5c\
-[${mathContent}\x5c\
-\x5c]` : `\x5c\x5c(${math\
-Content}\x5c\x5c)`;\x0a\x09\x09\
-\x09\x09\x09\x09html = (disp\
-layMode ? `<div>\
-${Utils.escapeHt\
-ml(fb)}</div>` :\
- `<span>${Utils.\
-escapeHtml(fb)}<\
-/span>`);\x0a\x09\x09\x09\x09\x09}\
-\x0a\x09\x09\x09\x09\x09const host\
- = document.crea\
-teElement(displa\
-yMode ? 'div' : \
-'span');\x0a\x09\x09\x09\x09\x09ho\
-st.innerHTML = h\
-tml;\x0a\x09\x09\x09\x09\x09const \
-el = host.firstE\
-lementChild || h\
-ost;\x0a\x09\x09\x09\x09\x09if (pa\
-rent.classList &\
-& parent.classLi\
-st.contains('mat\
-h-pending')) par\
-ent.replaceWith(\
-el);\x0a\x09\x09\x09\x09\x09else p\
-arent.replaceChi\
-ld(el, script);\x0a\
-\x09\x09\x09\x09} else {\x0a\x09\x09\x09\
-\x09\x09const el = doc\
-ument.createElem\
-ent(displayMode \
-? 'div' : 'span'\
-);\x0a\x09\x09\x09\x09\x09try {\x0a\x09\x09\
-\x09\x09\x09\x09katex.render\
-(mathContent, el\
-, {\x0a\x09\x09\x09\x09\x09\x09\x09displ\
-ayMode,\x0a\x09\x09\x09\x09\x09\x09\x09t\
-hrowOnError: fal\
-se\x0a\x09\x09\x09\x09\x09\x09});\x0a\x09\x09\x09\
-\x09\x09} catch (_) {\x0a\
-\x09\x09\x09\x09\x09\x09el.textCon\
-tent = (displayM\
-ode ? `\x5c\x5c[${math\
-Content}\x5c\x5c]` : `\
-\x5c\x5c(${mathContent\
-}\x5c\x5c)`);\x0a\x09\x09\x09\x09\x09}\x0a\x09\
-\x09\x09\x09\x09if (parent.c\
-lassList && pare\
-nt.classList.con\
-tains('math-pend\
-ing')) parent.re\
-placeWith(el);\x0a\x09\
-\x09\x09\x09\x09else parent.\
-replaceChild(el,\
- script);\x0a\x09\x09\x09\x09}\x0a\
-\x09\x09\x09} catch (_) {\
-\x0a\x09\x09\x09\x09// Keep fal\
-lback text intac\
-t on any error\x0a\x09\
-\x09\x09}\x0a\x09\x09};\x0a\x0a\x09\x09// P\
-rocess formulas \
-cooperatively (r\
-AF yields).\x0a\x09\x09aw\
-ait this.asyncer\
-.forEachChunk(sc\
-ripts, batchFn, \
-'MathRenderer');\
-\x0a\x09}\x0a\x0a\x09// Schedul\
-e math rendering\
- for a root. Coa\
-lesces multiple \
-calls.\x0a\x09schedule\
-(root, _delayIgn\
-ored = 0, forceN\
-ow = false) {\x0a\x09\x09\
-// If KaTeX is n\
-ot available, ho\
-nor no-op. API s\
-tays intact.\x0a\x09\x09i\
-f (typeof katex \
-=== 'undefined')\
- return;\x0a\x0a\x09\x09// N\
-ormalize root (d\
-efault to whole \
-document).\x0a\x09\x09con\
-st targetRoot = \
-root || document\
-;\x0a\x0a\x09\x09// Fast exi\
-stence check to \
-avoid arming rAF\
- when nothing to\
- do, but still\x0a\x09\
-\x09// keep aggrega\
-tion semantics: \
-if a job is alre\
-ady scheduled we\
- can still\x0a\x09\x09// \
-merge new roots \
-into the pending\
- set when they a\
-ctually contain \
-math.\x0a\x09\x09let hasM\
-ath = true;\x0a\x09\x09if\
- (!forceNow) {\x0a\x09\
-\x09\x09try {\x0a\x09\x09\x09\x09hasM\
-ath = !!(targetR\
-oot && targetRoo\
-t.querySelector \
-&& targetRoot.qu\
-erySelector('scr\
-ipt[type^=\x22math/\
-tex\x22]'));\x0a\x09\x09\x09} c\
-atch (_) {\x0a\x09\x09\x09\x09h\
-asMath = false;\x0a\
-\x09\x09\x09}\x0a\x09\x09\x09if (!has\
-Math) return; //\
- nothing to rend\
-er for this root\
-; safe early exi\
-t\x0a\x09\x09}\x0a\x0a\x09\x09// Aggr\
-egate roots so n\
-othing is lost w\
-hile one job is \
+function');\x0a\x0a\x09\x09/\
+/ Math placehold\
+ers are emitted \
+inside <script t\
+ype=\x22math/tex\x22>.\
+ Script\x0a\x09\x09// ele\
+ments are raw-te\
+xt nodes, so HTM\
+L entities produ\
+ced by escapeHtm\
+l()\x0a\x09\x09// are not\
+ decoded by the \
+HTML parser. Dec\
+ode exactly the \
+single escaping\x0a\
+\x09\x09// layer added\
+ by the placehol\
+der renderer bef\
+ore passing TeX \
+to KaTeX.\x0a\x09\x09// A\
+ callback replac\
+ement is intenti\
+onal: replacemen\
+ts are not scann\
+ed\x0a\x09\x09// again, s\
+o an original li\
+teral \x22&lt;\x22 rem\
+ains \x22&lt;\x22 rath\
+er than \x22<\x22.\x0a\x09\x09c\
+onst decodeEscap\
+edMathText = (ra\
+w) => String(raw\
+ ?? '').replace(\
+\x0a\x09\x09\x09/&(amp|lt|gt\
+);/g,\x0a\x09\x09\x09(_match\
+, entity) => ent\
+ity === 'amp' ? \
+'&' : (entity ==\
+= 'lt' ? '<' : '\
+>')\x0a\x09\x09);\x0a\x0a\x09\x09cons\
+t batchFn = asyn\
+c (script) => {\x0a\
+\x09\x09\x09if (!script |\
+| !script.isConn\
+ected) return;\x0a\x09\
+\x09\x09// Only render\
+ math in bot mes\
+sages\x0a\x09\x09\x09if (!sc\
+ript.closest('.m\
+sg-box.msg-bot')\
+) return;\x0a\x09\x09\x09con\
+st t = script.ge\
+tAttribute('type\
+') || '';\x0a\x09\x09\x09con\
+st displayMode =\
+ t.indexOf('mode\
+=display') > -1;\
+\x0a\x09\x09\x09// avoid inn\
+erText (it may t\
+rigger layout). \
+textContent is s\
+ufficient here.\x0a\
+\x09\x09\x09const mathCon\
+tent = decodeEsc\
+apedMathText(scr\
+ipt.textContent \
+|| '');\x0a\x09\x09\x09const\
+ parent = script\
+.parentNode;\x0a\x09\x09\x09\
+if (!parent) ret\
+urn;\x0a\x0a\x09\x09\x09try {\x0a\x09\
+\x09\x09\x09if (useToStri\
+ng) {\x0a\x09\x09\x09\x09\x09let h\
+tml = '';\x0a\x09\x09\x09\x09\x09t\
+ry {\x0a\x09\x09\x09\x09\x09\x09html \
+= katex.renderTo\
+String(mathConte\
+nt, {\x0a\x09\x09\x09\x09\x09\x09\x09dis\
+playMode,\x0a\x09\x09\x09\x09\x09\x09\
+\x09throwOnError: f\
+alse\x0a\x09\x09\x09\x09\x09\x09});\x0a\x09\
+\x09\x09\x09\x09} catch (_) \
+{\x0a\x09\x09\x09\x09\x09\x09const fb\
+ = displayMode ?\
+ `\x5c\x5c[${mathConte\
+nt}\x5c\x5c]` : `\x5c\x5c(${\
+mathContent}\x5c\x5c)`\
+;\x0a\x09\x09\x09\x09\x09\x09html = (\
+displayMode ? `<\
+div>${Utils.esca\
+peHtml(fb)}</div\
+>` : `<span>${Ut\
+ils.escapeHtml(f\
+b)}</span>`);\x0a\x09\x09\
+\x09\x09\x09}\x0a\x09\x09\x09\x09\x09const \
+host = document.\
+createElement(di\
+splayMode ? 'div\
+' : 'span');\x0a\x09\x09\x09\
+\x09\x09host.innerHTML\
+ = html;\x0a\x09\x09\x09\x09\x09co\
+nst el = host.fi\
+rstElementChild \
+|| host;\x0a\x09\x09\x09\x09\x09if\
+ (parent.classLi\
+st && parent.cla\
+ssList.contains(\
+'math-pending'))\
+ parent.replaceW\
+ith(el);\x0a\x09\x09\x09\x09\x09el\
+se parent.replac\
+eChild(el, scrip\
+t);\x0a\x09\x09\x09\x09} else {\
+\x0a\x09\x09\x09\x09\x09const el =\
+ document.create\
+Element(displayM\
+ode ? 'div' : 's\
+pan');\x0a\x09\x09\x09\x09\x09try \
+{\x0a\x09\x09\x09\x09\x09\x09katex.re\
+nder(mathContent\
+, el, {\x0a\x09\x09\x09\x09\x09\x09\x09d\
+isplayMode,\x0a\x09\x09\x09\x09\
+\x09\x09\x09throwOnError:\
+ false\x0a\x09\x09\x09\x09\x09\x09});\
+\x0a\x09\x09\x09\x09\x09} catch (_\
+) {\x0a\x09\x09\x09\x09\x09\x09el.tex\
+tContent = (disp\
+layMode ? `\x5c\x5c[${\
+mathContent}\x5c\x5c]`\
+ : `\x5c\x5c(${mathCon\
+tent}\x5c\x5c)`);\x0a\x09\x09\x09\x09\
+\x09}\x0a\x09\x09\x09\x09\x09if (pare\
+nt.classList && \
+parent.classList\
+.contains('math-\
+pending')) paren\
+t.replaceWith(el\
+);\x0a\x09\x09\x09\x09\x09else par\
+ent.replaceChild\
+(el, script);\x0a\x09\x09\
+\x09\x09}\x0a\x09\x09\x09} catch (\
+_) {\x0a\x09\x09\x09\x09// Keep\
+ fallback text i\
+ntact on any err\
+or\x0a\x09\x09\x09}\x0a\x09\x09};\x0a\x0a\x09\x09\
+// Process formu\
+las cooperativel\
+y (rAF yields).\x0a\
+\x09\x09await this.asy\
+ncer.forEachChun\
+k(scripts, batch\
+Fn, 'MathRendere\
+r');\x0a\x09}\x0a\x0a\x09// Sch\
+edule math rende\
+ring for a root.\
+ Coalesces multi\
+ple calls.\x0a\x09sche\
+dule(root, _dela\
+yIgnored = 0, fo\
+rceNow = false) \
+{\x0a\x09\x09// If KaTeX \
+is not available\
+, honor no-op. A\
+PI stays intact.\
+\x0a\x09\x09if (typeof ka\
+tex === 'undefin\
+ed') return;\x0a\x0a\x09\x09\
+// Normalize roo\
+t (default to wh\
+ole document).\x0a\x09\
+\x09const targetRoo\
+t = root || docu\
+ment;\x0a\x0a\x09\x09// Fast\
+ existence check\
+ to avoid arming\
+ rAF when nothin\
+g to do, but sti\
+ll\x0a\x09\x09// keep agg\
+regation semanti\
+cs: if a job is \
 already schedule\
-d.\x0a\x09\x09if (targetR\
-oot === document\
- || targetRoot =\
-== document.docu\
-mentElement || t\
-argetRoot === do\
-cument.body) {\x0a\x09\
-\x09\x09this._pendingD\
-oc = true; // pr\
-omote to a full-\
-document sweep\x0a\x09\
+d we can still\x0a\x09\
+\x09// merge new ro\
+ots into the pen\
+ding set when th\
+ey actually cont\
+ain math.\x0a\x09\x09let \
+hasMath = true;\x0a\
+\x09\x09if (!forceNow)\
+ {\x0a\x09\x09\x09try {\x0a\x09\x09\x09\x09\
+hasMath = !!(tar\
+getRoot && targe\
+tRoot.querySelec\
+tor && targetRoo\
+t.querySelector(\
+'script[type^=\x22m\
+ath/tex\x22]'));\x0a\x09\x09\
+\x09} catch (_) {\x0a\x09\
+\x09\x09\x09hasMath = fal\
+se;\x0a\x09\x09\x09}\x0a\x09\x09\x09if (\
+!hasMath) return\
+; // nothing to \
+render for this \
+root; safe early\
+ exit\x0a\x09\x09}\x0a\x0a\x09\x09// \
+Aggregate roots \
+so nothing is lo\
+st while one job\
+ is already sche\
+duled.\x0a\x09\x09if (tar\
+getRoot === docu\
+ment || targetRo\
+ot === document.\
+documentElement \
+|| targetRoot ==\
+= document.body)\
+ {\x0a\x09\x09\x09this._pend\
+ingDoc = true; /\
+/ promote to a f\
+ull-document swe\
+ep\x0a\x09\x09\x09this._pend\
+ingRoots.clear()\
+; // small optim\
+ization (documen\
+t covers all)\x0a\x09\x09\
+} else if (!this\
+._pendingDoc) {\x0a\
+\x09\x09\x09this._pending\
+Roots.add(target\
+Root);\x0a\x09\x09}\x0a\x0a\x09\x09//\
+ If a task is al\
+ready scheduled,\
+ do not arm anot\
+her \xe2\x80\x93 coalesci\
+ng will take car\
+e of it.\x0a\x09\x09if (t\
+his.scheduled &&\
+ this.raf && typ\
+eof this.raf.isS\
+cheduled === 'fu\
+nction' && this.\
+raf.isScheduled(\
+this.rafKey)) re\
+turn;\x0a\x0a\x09\x09this.sc\
+heduled = true;\x0a\
+\x09\x09const priority\
+ = forceNow ? 0 \
+: 2;\x0a\x0a\x09\x09// Singl\
+e rAF job drains\
+ all pending roo\
+ts; renderAsync \
+remains public a\
+nd unchanged.\x0a\x09\x09\
+this.raf.schedul\
+e(this.rafKey, (\
+) => {\x0a\x09\x09\x09this.s\
+cheduled = false\
+;\x0a\x0a\x09\x09\x09const useD\
+oc = this._pendi\
+ngDoc;\x0a\x09\x09\x09const \
+roots = [];\x0a\x0a\x09\x09\x09\
+if (useDoc) {\x0a\x09\x09\
+\x09\x09roots.push(doc\
+ument);\x0a\x09\x09\x09} els\
+e {\x0a\x09\x09\x09\x09this._pe\
+ndingRoots.forEa\
+ch((r) => {\x0a\x09\x09\x09\x09\
+\x09// Only keep co\
+nnected elements\
+ to avoid useles\
+s work.\x0a\x09\x09\x09\x09\x09try\
+ {\x0a\x09\x09\x09\x09\x09\x09if (r &\
+& (r.isConnected\
+ === undefined |\
+| r.isConnected)\
+) roots.push(r);\
+\x0a\x09\x09\x09\x09\x09} catch (_\
+) {\x0a\x09\x09\x09\x09\x09\x09// Con\
+servative: keep \
+the root; render\
+Async guards int\
+ernally.\x0a\x09\x09\x09\x09\x09\x09r\
+oots.push(r);\x0a\x09\x09\
+\x09\x09\x09}\x0a\x09\x09\x09\x09});\x0a\x09\x09\x09\
+}\x0a\x0a\x09\x09\x09// Reset a\
+ggregation state\
+ before running \
+(new calls can a\
+ggregate afresh)\
+.\x0a\x09\x09\x09this._pendi\
+ngDoc = false;\x0a\x09\
 \x09\x09this._pendingR\
-oots.clear(); //\
- small optimizat\
-ion (document co\
-vers all)\x0a\x09\x09} el\
-se if (!this._pe\
-ndingDoc) {\x0a\x09\x09\x09t\
-his._pendingRoot\
-s.add(targetRoot\
-);\x0a\x09\x09}\x0a\x0a\x09\x09// If \
-a task is alread\
-y scheduled, do \
-not arm another \
-\xe2\x80\x93 coalescing w\
-ill take care of\
- it.\x0a\x09\x09if (this.\
-scheduled && thi\
-s.raf && typeof \
-this.raf.isSched\
-uled === 'functi\
-on' && this.raf.\
-isScheduled(this\
-.rafKey)) return\
-;\x0a\x0a\x09\x09this.schedu\
-led = true;\x0a\x09\x09co\
-nst priority = f\
-orceNow ? 0 : 2;\
-\x0a\x0a\x09\x09// Single rA\
-F job drains all\
- pending roots; \
-renderAsync rema\
-ins public and u\
-nchanged.\x0a\x09\x09this\
-.raf.schedule(th\
-is.rafKey, () =>\
- {\x0a\x09\x09\x09this.sched\
-uled = false;\x0a\x0a\x09\
-\x09\x09const useDoc =\
- this._pendingDo\
-c;\x0a\x09\x09\x09const root\
-s = [];\x0a\x0a\x09\x09\x09if (\
-useDoc) {\x0a\x09\x09\x09\x09ro\
-ots.push(documen\
-t);\x0a\x09\x09\x09} else {\x0a\
-\x09\x09\x09\x09this._pendin\
-gRoots.forEach((\
-r) => {\x0a\x09\x09\x09\x09\x09// \
-Only keep connec\
-ted elements to \
-avoid useless wo\
-rk.\x0a\x09\x09\x09\x09\x09try {\x0a\x09\
-\x09\x09\x09\x09\x09if (r && (r\
-.isConnected ===\
- undefined || r.\
-isConnected)) ro\
-ots.push(r);\x0a\x09\x09\x09\
-\x09\x09} catch (_) {\x0a\
-\x09\x09\x09\x09\x09\x09// Conserv\
-ative: keep the \
-root; renderAsyn\
-c guards interna\
-lly.\x0a\x09\x09\x09\x09\x09\x09roots\
-.push(r);\x0a\x09\x09\x09\x09\x09}\
-\x0a\x09\x09\x09\x09});\x0a\x09\x09\x09}\x0a\x0a\x09\
-\x09\x09// Reset aggre\
-gation state bef\
-ore running (new\
- calls can aggre\
-gate afresh).\x0a\x09\x09\
-\x09this._pendingDo\
-c = false;\x0a\x09\x09\x09th\
-is._pendingRoots\
-.clear();\x0a\x0a\x09\x09\x09//\
- Fire-and-forget\
- async drain; ke\
-ep renderAsync A\
-PI intact.\x0a\x09\x09\x09(a\
-sync () => {\x0a\x09\x09\x09\
-\x09for (let i = 0;\
- i < roots.lengt\
-h; i++) {\x0a\x09\x09\x09\x09\x09t\
-ry {\x0a\x09\x09\x09\x09\x09\x09await\
- this.renderAsyn\
-c(roots[i]);\x0a\x09\x09\x09\
-\x09\x09} catch (_) {\x0a\
-\x09\x09\x09\x09\x09\x09/* swallow\
- \xe2\x80\x93 resilient *\
-/\x0a\x09\x09\x09\x09\x09}\x0a\x09\x09\x09\x09}\x0a\x09\
-\x09\x09})();\x0a\x09\x09}, 'Ma\
-th', priority);\x0a\
-\x09}\x0a\x0a\x09// Cleanup \
-pending work and\
- state.\x0a\x09cleanup\
-() {\x0a\x09\x09try {\x0a\x09\x09\x09\
-this.raf.cancelG\
-roup('Math');\x0a\x09\x09\
-} catch (_) {}\x0a\x09\
-\x09this.scheduled \
-= false;\x0a\x0a\x09\x09// E\
-nsure pending st\
-ate is fully cle\
-ared on cleanup.\
-\x0a\x09\x09try {\x0a\x09\x09\x09this\
-._pendingRoots.c\
-lear();\x0a\x09\x09} catc\
-h (_) {}\x0a\x09\x09this.\
-_pendingDoc = fa\
-lse;\x0a\x09}\x0a}\
+oots.clear();\x0a\x0a\x09\
+\x09\x09// Fire-and-fo\
+rget async drain\
+; keep renderAsy\
+nc API intact.\x0a\x09\
+\x09\x09(async () => {\
+\x0a\x09\x09\x09\x09for (let i \
+= 0; i < roots.l\
+ength; i++) {\x0a\x09\x09\
+\x09\x09\x09try {\x0a\x09\x09\x09\x09\x09\x09a\
+wait this.render\
+Async(roots[i]);\
+\x0a\x09\x09\x09\x09\x09} catch (_\
+) {\x0a\x09\x09\x09\x09\x09\x09/* swa\
+llow \xe2\x80\x93 resilie\
+nt */\x0a\x09\x09\x09\x09\x09}\x0a\x09\x09\x09\
+\x09}\x0a\x09\x09\x09})();\x0a\x09\x09},\
+ 'Math', priorit\
+y);\x0a\x09}\x0a\x0a\x09// Clea\
+nup pending work\
+ and state.\x0a\x09cle\
+anup() {\x0a\x09\x09try {\
+\x0a\x09\x09\x09this.raf.can\
+celGroup('Math')\
+;\x0a\x09\x09} catch (_) \
+{}\x0a\x09\x09this.schedu\
+led = false;\x0a\x0a\x09\x09\
+// Ensure pendin\
+g state is fully\
+ cleared on clea\
+nup.\x0a\x09\x09try {\x0a\x09\x09\x09\
+this._pendingRoo\
+ts.clear();\x0a\x09\x09} \
+catch (_) {}\x0a\x09\x09t\
+his._pendingDoc \
+= false;\x0a\x09}\x0a}\
 \x00\x00<\xc3\
 /\
 / ==============\
@@ -115201,7 +115241,7 @@ r,r.macros=r.mac\
 ros||{},d(e,r)}}\
 (),i=i.default}(\
 )}));\
-\x00\x03\xce~\
+\x00\x03\xcf\x1e\
 /\
 * app.min.js \xe2\x80\x94\
  generated on 20\
@@ -121312,22 +121352,32 @@ ype^=\x22math/tex\x22]\
 tring=(typeof ka\
 tex.renderToStri\
 ng==='function')\
-;const batchFn=a\
-sync(script)=>{i\
-f(!script||!scri\
-pt.isConnected)r\
-eturn;if(!script\
-.closest('.msg-b\
-ox.msg-bot'))ret\
-urn;const t=scri\
-pt.getAttribute(\
-'type')||'';cons\
-t displayMode=t.\
-indexOf('mode=di\
-splay')>-1;const\
- mathContent=scr\
-ipt.textContent|\
-|'';const parent\
+;const decodeEsc\
+apedMathText=(ra\
+w)=>String(raw??\
+'').replace(/&(a\
+mp|lt|gt);/g,(_m\
+atch,entity)=>en\
+tity==='amp'?'&'\
+:(entity==='lt'?\
+'<':'>'));const \
+batchFn=async(sc\
+ript)=>{if(!scri\
+pt||!script.isCo\
+nnected)return;i\
+f(!script.closes\
+t('.msg-box.msg-\
+bot'))return;con\
+st t=script.getA\
+ttribute('type')\
+||'';const displ\
+ayMode=t.indexOf\
+('mode=display')\
+>-1;const mathCo\
+ntent=decodeEsca\
+pedMathText(scri\
+pt.textContent||\
+'');const parent\
 =script.parentNo\
 de;if(!parent)re\
 turn;try{if(useT\
@@ -130929,31 +130979,31 @@ qt_resource_struct = b"\
 \x00\x00\x00\xaa\x00\x00\x00\x00\x00\x01\x00\x11.\x9b\
 \x00\x00\x01V\x00\x00\x00\x00\x00\x01\x00\x12\xf5\xa7\
 \x00\x00\x00p\x00\x00\x00\x00\x00\x01\x00\x10\xde9\
-\x00\x00\x01r\x00\x00\x00\x00\x00\x01\x00\x13\x0bu\
-\x00\x00\x02h\x00\x00\x00\x00\x00\x01\x00\x18'\xf6\
+\x00\x00\x01r\x00\x00\x00\x00\x00\x01\x00\x13\x0d\xf9\
+\x00\x00\x02h\x00\x00\x00\x00\x00\x01\x00\x18*z\
 \x00\x00\x000\x00\x00\x00\x00\x00\x01\x00\x10s\xea\
-\x00\x00\x02\x88\x00\x00\x00\x00\x00\x01\x00\x18D\x87\
-\x00\x00\x030\x00\x00\x00\x00\x00\x01\x00\x1b\x91C\
-\x00\x00\x02\x0e\x00\x00\x00\x00\x00\x01\x00\x13\xafu\
-\x00\x00\x03\x9c\x00\x00\x00\x00\x00\x01\x00\x1c\x1b\xba\
-\x00\x00\x01\xb2\x00\x00\x00\x00\x00\x01\x00\x13Q\x8a\
+\x00\x00\x02\x88\x00\x00\x00\x00\x00\x01\x00\x18G\x0b\
+\x00\x00\x030\x00\x00\x00\x00\x00\x01\x00\x1b\x93\xc7\
+\x00\x00\x02\x0e\x00\x00\x00\x00\x00\x01\x00\x13\xb1\xf9\
+\x00\x00\x03\x9c\x00\x00\x00\x00\x00\x01\x00\x1c\x1e>\
+\x00\x00\x01\xb2\x00\x00\x00\x00\x00\x01\x00\x13T\x0e\
 \x00\x00\x00\xf8\x00\x00\x00\x00\x00\x01\x00\x11O\xbd\
-\x00\x00\x01\xf0\x00\x00\x00\x00\x00\x01\x00\x13\xa8o\
+\x00\x00\x01\xf0\x00\x00\x00\x00\x00\x01\x00\x13\xaa\xf3\
 \x00\x00\x00J\x00\x00\x00\x00\x00\x01\x00\x10\x8c-\
 \x00\x00\x016\x00\x00\x00\x00\x00\x01\x00\x11q\xa0\
-\x00\x00\x02\xb2\x00\x00\x00\x00\x00\x01\x00\x1a'm\
-\x00\x00\x03R\x00\x00\x00\x00\x00\x01\x00\x1b\xdd\xe4\
-\x00\x00\x02\xd0\x00\x00\x00\x00\x00\x01\x00\x1aX\xc7\
-\x00\x00\x01\x96\x00\x00\x00\x00\x00\x01\x00\x13H<\
-\x00\x00\x02.\x00\x00\x00\x00\x00\x01\x00\x13\xc6\x8b\
+\x00\x00\x02\xb2\x00\x00\x00\x00\x00\x01\x00\x1a)\xf1\
+\x00\x00\x03R\x00\x00\x00\x00\x00\x01\x00\x1b\xe0h\
+\x00\x00\x02\xd0\x00\x00\x00\x00\x00\x01\x00\x1a[K\
+\x00\x00\x01\x96\x00\x00\x00\x00\x00\x01\x00\x13J\xc0\
+\x00\x00\x02.\x00\x00\x00\x00\x00\x01\x00\x13\xc9\x0f\
 \x00\x00\x00\x0a\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\
-\x00\x00\x03\x14\x00\x00\x00\x00\x00\x01\x00\x1bd\xda\
-\x00\x00\x02L\x00\x00\x00\x00\x00\x01\x00\x17\xff\xa4\
-\x00\x00\x01\xd0\x00\x00\x00\x00\x00\x01\x00\x13n\xf1\
+\x00\x00\x03\x14\x00\x00\x00\x00\x00\x01\x00\x1bg^\
+\x00\x00\x02L\x00\x00\x00\x00\x00\x01\x00\x18\x02(\
+\x00\x00\x01\xd0\x00\x00\x00\x00\x00\x01\x00\x13qu\
 \x00\x00\x00\x8a\x00\x00\x00\x00\x00\x01\x00\x11\x07\xcf\
-\x00\x00\x02\xf0\x00\x00\x00\x00\x00\x01\x00\x1a\xd0\x99\
+\x00\x00\x02\xf0\x00\x00\x00\x00\x00\x01\x00\x1a\xd3\x1d\
 \x00\x00\x00\xc2\x00\x00\x00\x00\x00\x01\x00\x11I3\
-\x00\x00\x03r\x00\x00\x00\x00\x00\x01\x00\x1c\x0e \
+\x00\x00\x03r\x00\x00\x00\x00\x00\x01\x00\x1c\x10\xa4\
 \x00\x00\x01\x16\x00\x00\x00\x00\x00\x01\x00\x11g\xec\
 "
 

@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.12.31 17:00:00                  #
+# Updated Date: 2026.09.03 16:20:00                  #
 # ================================================== #
 
 import os
@@ -17,8 +17,25 @@ from logging import ERROR, WARNING, INFO, DEBUG
 
 from PySide6 import QtCore
 from PySide6.QtCore import QCoreApplication, Qt
-from PySide6.QtGui import QScreen
+from PySide6.QtGui import QScreen, QPixmapCache
 from PySide6.QtWidgets import QApplication
+from PySide6.QtWebEngineCore import QWebEngineUrlScheme
+
+
+def _register_qrc_webengine_scheme():
+    """Enable CORS access to bundled qrc resources in Qt WebEngine."""
+    qrc_scheme = QWebEngineUrlScheme(b"qrc")
+    qrc_scheme.setFlags(
+        QWebEngineUrlScheme.Flag.SecureScheme
+        | QWebEngineUrlScheme.Flag.LocalAccessAllowed
+        | QWebEngineUrlScheme.Flag.CorsEnabled
+        | QWebEngineUrlScheme.Flag.ViewSourceAllowed
+    )
+    QWebEngineUrlScheme.registerScheme(qrc_scheme)
+
+# URL schemes must be registered before QApplication.
+_register_qrc_webengine_scheme()
+
 
 from pygpt_net.core.events import AppEvent
 from pygpt_net.core.access.shortcuts import GlobalShortcutFilter
@@ -35,7 +52,6 @@ from pygpt_net.provider.loaders.base import BaseLoader
 from pygpt_net.provider.vector_stores.base import BaseStore
 from pygpt_net.provider.web.base import BaseProvider as BaseWeb
 
-from PySide6.QtGui import QPixmapCache
 QPixmapCache.setCacheLimit(1024)  # ~1 MB
 
 
