@@ -744,3 +744,7 @@ think {{
 .tips.visible {{
  opacity: 1;
 }}
+
+.code-wrapper .code-header-wrapper {{
+  margin: 0;
+}}

@@ -72,7 +72,7 @@ class UIManager {
 			'.code-wrapper .code-header-action.code-header-copy,',
 			'.code-wrapper .code-header-action.code-header-collapse { display: inline-flex; align-items: center; border-radius: 6px; padding: 2px; line-height: 0; border: 1px solid transparent; transition: transform .15s ease, background-color .15s ease, border-color .15s ease; }',
 			'.code-wrapper .code-header-action.code-header-copy:hover,',
-			'.code-wrapper .code-header-action.code-header-collapse:hover { transform: scale(1.06); background: var(--copy-btn-bg-hover, rgba(0,0,0,.76)); border-color: var(--copy-btn-border, rgba(0,0,0,.08)); }',
+			'.code-wrapper .code-header-action.code-header-collapse:hover { transform: scale(1.06); border-color: var(--copy-btn-border, rgba(0,0,0,.08)); }',
 			'.code-wrapper .code-header-action.copied { background: var(--copy-btn-bg-copied, rgba(150,150,150,.12)); border-color: var(--copy-btn-border-copied, rgba(150,150,150,.35)); animation: msg-copy-pop .25s ease; }',
 
 			/* Small scale pop when copied */
