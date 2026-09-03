@@ -615,7 +615,8 @@ class FileExplorer(QWidget):
 
         header = QHBoxLayout()
 
-        self.btn_open = QPushButton(QIcon(":/icons/folder.svg"), trans('action.open'))
+        self.btn_open = QPushButton(QIcon(":/icons/folder_open.svg"), "")
+        self.btn_open.setToolTip(trans('action.open'))
         self.btn_open.setMaximumHeight(40)
         self.btn_open.clicked.connect(
                 lambda: self.action_open(self.directory)

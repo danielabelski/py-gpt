@@ -63,6 +63,7 @@ class Indexes:
         nodes['indexes.new'].setFixedSize(icon_size, icon_size)
         nodes['indexes.new'].setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         nodes['indexes.new'].setFocusPolicy(Qt.NoFocus)
+        nodes['indexes.new'].setToolTip(trans('toolbox.indexes.edit.tooltip'))
         nodes['indexes.new'].clicked.connect(self._open_llama_index_settings)
 
         nodes['indexes.label'] = TitleLabel(trans("toolbox.indexes.label"))
@@ -138,6 +139,7 @@ class Indexes:
         nodes['indexes.new'].setFixedSize(icon_size, icon_size)
         nodes['indexes.new'].setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         nodes['indexes.new'].setFocusPolicy(Qt.NoFocus)
+        nodes['indexes.new'].setToolTip(trans('toolbox.indexes.edit.tooltip'))
         nodes['indexes.new'].clicked.connect(self._open_llama_index_settings)
 
         nodes['indexes.label'] = TitleLabel(trans("toolbox.indexes.label"))
