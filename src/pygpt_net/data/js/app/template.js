@@ -271,8 +271,11 @@ class NodeTemplateEngine {
 
 		let titleHtml = '';
 		let contentHtml = legacyToolOutput;
+		let toolNamesAttr = '';
 		if (hasToolCalls) {
-			const names = toolCalls.map((call) => this._escapeHtml(String(call.name || 'tool')));
+			const rawNames = toolCalls.map((call) => String(call.name || 'tool'));
+			const names = rawNames.map((name) => this._escapeHtml(name));
+			toolNamesAttr = this._escapeHtml(JSON.stringify(rawNames));
 			const requests = toolCalls
 				.map((call) => this._escapeHtml(String(call.request || '')))
 				.join('\n\n');
@@ -301,8 +304,12 @@ class NodeTemplateEngine {
 			`<img src='${this._esc(expIcon)}' width='25' height='25' valign='middle'>` +
 			`</span>`;
 
+		const toolAttrs = hasToolCalls
+			? ` id='tool-output-${this._esc(block.id)}' data-tool-names='${toolNamesAttr}'`
+			: '';
+
 		return (
-			`<div class='tool-output' style='${wrapperDisplay}'>` +
+			`<div class='tool-output'${toolAttrs} style='${wrapperDisplay}'>` +
 			`${titleHtml}${legacyToggleHtml}` +
 			`<div class='content' style='display:none' data-trusted='1'>${contentHtml}</div>` +
 			`</div>`
@@ -328,9 +335,23 @@ class NodeTemplateEngine {
 		const extras = this._renderExtras(block);
 		const actions = (block.extra && block.extra.footer_icons) ? this._renderActions(block) : '';
 		const debug = (block.extra && block.extra.debug_html) ? String(block.extra.debug_html) : '';
+		const toolCalls = Array.isArray(block.extra && block.extra.tool_calls)
+			? block.extra.tool_calls.filter(Boolean)
+			: [];
+		const hasToolCalls = toolCalls.length > 0;
+		// A tool-chain item may still carry invisible/auxiliary extras (tool_extra_html,
+		// files, actions, debug wrappers, etc.).  Those must not prevent grouping.
+		// The decisive condition is that after stripping the tool call there is no
+		// normal assistant text.  Keep the continuation marker on every tool-call
+		// message so the DOM grouping pass can use the exact persisted chain edge.
+		const toolOnly = hasToolCalls && !mdText;
+		const chainContinuation = !!(block.extra && block.extra.tool_chain_continuation === true);
+		const toolChainAttrs = hasToolCalls
+			? ` data-tool-only='${toolOnly ? '1' : '0'}' data-tool-chain-continuation='${chainContinuation ? '1' : '0'}'`
+			: '';
 
 		return (
-			`<div class='msg-box msg-bot' id='${msgId}'>` +
+			`<div class='msg-box msg-bot' id='${msgId}'${toolChainAttrs}>` +
 			`${nameHeader}` +
 			`<div class='msg'>` +
 			`${mdBlock}` +

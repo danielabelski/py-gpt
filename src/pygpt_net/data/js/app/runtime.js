@@ -27,7 +27,7 @@ class Runtime {
 		this.scrollMgr = new ScrollManager(this.cfg, this.dom, this.raf);
 		this.toolOutput = new ToolOutput();
 		this.loading = new Loading(this.dom);
-		this.nodes = new NodesManager(this.dom, this.renderer, this.highlighter, this.math);
+		this.nodes = new NodesManager(this.dom, this.renderer, this.highlighter, this.math, this.toolOutput);
 		this.bridge = new BridgeManager(this.cfg, this.logger);
 		this.ui = new UIManager();
 		this.stream = new StreamEngine(this.cfg, this.dom, this.renderer, this.math, this.highlighter, this.codeScroll, this.scrollMgr, this.raf, this.async, this.logger);
@@ -272,6 +272,7 @@ class Runtime {
 	api_enableToolOutput = () => this.toolOutput.enable();
 	api_disableToolOutput = () => this.toolOutput.disable();
 	api_toggleToolOutput = (id) => this.toolOutput.toggle(id);
+	api_toggleToolGroup = (id) => this.toolOutput.toggleGroup(id);
 
 	// API: toggle collapsed file/URL extras.
 	api_toggleExtraItems = (button) => this.ui.toggleExtraItems(button);
@@ -508,6 +509,7 @@ window.endToolOutput = () => runtime.api_endToolOutput();
 window.enableToolOutput = () => runtime.api_enableToolOutput();
 window.disableToolOutput = () => runtime.api_disableToolOutput();
 window.toggleToolOutput = (id) => runtime.api_toggleToolOutput(id);
+window.toggleToolGroup = (id) => runtime.api_toggleToolGroup(id);
 window.toggleExtraItems = (button) => runtime.api_toggleExtraItems(button);
 
 window.appendExtra = (id, c) => runtime.api_appendExtra(id, c);

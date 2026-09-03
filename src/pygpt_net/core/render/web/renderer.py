@@ -2439,6 +2439,11 @@ class Renderer(BaseRenderer):
             md_text = self.helpers.post_format_text(md_src)
             name, avatar, personalize = self._output_identity(ctx)
             show_output_identity = self._show_output_identity(ctx, prev_ctx)
+            # The same transition that suppresses a repeated avatar/name also marks
+            # a tool-call block as a continuation of the previous tool request.
+            # Frontend uses this explicit flag to group only real tool chains, not
+            # merely adjacent assistant messages that happen to contain tools.
+            tool_chain_continuation = not show_output_identity
 
             # tool output visibility (agent step / commands)
             is_cmd = (
@@ -2541,6 +2546,7 @@ class Renderer(BaseRenderer):
                 "tool_result": tool_result_display,
                 "tool_output": tool_output,
                 "tool_output_visible": tool_output_visible,
+                "tool_chain_continuation": bool(tool_chain_continuation),
                 "tool_extra_html": tool_extra_html,
                 "docs": docs_norm,
                 "footer_icons": bool(action_state.get("footer_icons", True)),

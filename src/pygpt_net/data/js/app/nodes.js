@@ -5,11 +5,12 @@
 class NodesManager {
 
 	// Nodes manager for handling message nodes.
-	constructor(dom, renderer, highlighter, math) {
+	constructor(dom, renderer, highlighter, math, toolOutput) {
 		this.dom = dom;
 		this.renderer = renderer;
 		this.highlighter = highlighter;
 		this.math = math;
+		this.toolOutput = toolOutput || null;
 		// User message collapse manager
 		this._userCollapse = new UserCollapseManager(this.renderer.cfg);
 	}
@@ -165,6 +166,17 @@ class NodesManager {
 		} catch (_) {}
 	}
 
+	// Group consecutive tool-only messages after DOM insertion. The grouping engine
+	// uses explicit continuation metadata, so a reload and real-time append follow
+	// exactly the same path.
+	_refreshToolGroups(root) {
+		try {
+			if (this.toolOutput && typeof this.toolOutput.groupConsecutive === 'function') {
+				this.toolOutput.groupConsecutive(root);
+			}
+		} catch (_) {}
+	}
+
 	// Append nodes into messages list and perform post-processing (markdown, code, math).
 	appendNode(content, scrollMgr) {
 		// Keep scroll behavior consistent with existing logic
@@ -195,6 +207,7 @@ class NodesManager {
 		}
 
 		el.insertAdjacentHTML('beforeend', content);
+		this._refreshToolGroups(el);
 
 		try {
 			// Defer post-processing (highlight/math/collapse) and perform scroll AFTER collapse.
@@ -267,6 +280,7 @@ class NodesManager {
 		}
 
 		el.insertAdjacentHTML('beforeend', content);
+		this._refreshToolGroups(el);
 
 		try {
 			// Defer KaTeX schedule to post-Markdown to avoid races and collapse before scroll.

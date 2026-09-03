@@ -491,6 +491,42 @@ think {{
 }}
 
 
+/* grouped consecutive tool calls */
+.tool-output-group > .tool-group-toggle {{
+  max-width: 100%;
+}}
+.tool-output-group > .tool-group-toggle .tool-group-names {{
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}}
+.tool-output-group > .tool-group-content {{
+  margin-top: 2px;
+  padding-left: 14px;
+}}
+.tool-output-group > .tool-group-content > .msg-box.msg-bot {{
+  max-width: 100%;
+  width: auto;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}}
+.tool-output-group > .tool-group-content > .msg-box.msg-bot > .name-header {{
+  display: none !important;
+}}
+.tool-output-group > .tool-group-content > .msg-box.msg-bot > .msg {{
+  margin: 0 !important;
+  padding: 0 !important;
+}}
+.tool-output-group > .tool-group-content > .msg-box.msg-bot .tool-output-toggle {{
+  margin-top: 2px;
+}}
+
+
 /* extra source */
 .extra-src-icon {{
   padding-right: 4px;

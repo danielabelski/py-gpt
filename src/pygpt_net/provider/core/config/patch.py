@@ -461,6 +461,15 @@ class Patch:
                     data["llama.idx.auto.modes"] = [item for item in auto_modes if item != "assistant"]
                     updated = True
 
+            # < 2.8.6
+            if old < parse_version("2.8.6"):
+                print("Migrating config from < 2.8.6...")
+                # grouped consecutive tool-call UI
+                patch_css('web-blocks.css', True)
+                patch_css('web-chatgpt.css', True)
+                patch_css('web-chatgpt_wide.css', True)
+                updated = True
+
         # update file
         migrated = False
         if updated:

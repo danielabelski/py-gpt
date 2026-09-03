@@ -830,6 +830,8 @@ class Body:
         t_more_items = trans("ctx.extra.more_items")
         t_doc_prefix = trans("chat.prefix.doc")
         t_tool = trans("ctx.tool.label")
+        t_tools = trans("ctx.tool.group.label")
+        t_tool_more = trans("ctx.tool.group.more")
         t_tool_request = trans("ctx.tool.request")
         t_tool_response = trans("ctx.tool.response")
 
@@ -843,6 +845,8 @@ class Body:
             f'window.LOCALE_EXPAND={_json_dumps(t_expand)};'
             f'window.LOCALE_DOC_PREFIX={_json_dumps(t_doc_prefix)};'
             f'window.LOCALE_TOOL={_json_dumps(t_tool)};'
+            f'window.LOCALE_TOOLS={_json_dumps(t_tools)};'
+            f'window.LOCALE_TOOL_MORE={_json_dumps(t_tool_more)};'
             f'window.LOCALE_TOOL_REQUEST={_json_dumps(t_tool_request)};'
             f'window.LOCALE_TOOL_RESPONSE={_json_dumps(t_tool_response)};'
         )
