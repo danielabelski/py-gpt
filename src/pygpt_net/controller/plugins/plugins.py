@@ -366,7 +366,8 @@ class Plugins:
                 c += 1
                 enabled_names.append(pm.get(pid).name)
 
-        tooltip = " + ".join(enabled_names)
+        enabled_names.sort(key=str.casefold)
+        tooltip = "\n".join(enabled_names)
         count_str = f"+ {c} {trans('chatbox.plugins')}" if c > 0 else ""
         self.window.ui.nodes['chat.plugins'].setText(count_str)
         self.window.ui.nodes['chat.plugins'].setToolTip(tooltip)

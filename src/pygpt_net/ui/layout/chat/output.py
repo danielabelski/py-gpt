@@ -6,15 +6,16 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.09.22 12:00:00                  #
+# Updated Date: 2026.09.03 21:20:00                  #
 # ================================================== #
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSize
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QCheckBox, QWidget, QSizePolicy, \
-    QGridLayout
+    QGridLayout, QLabel
 
 from pygpt_net.ui.widget.audio.output import AudioOutput
-from pygpt_net.ui.widget.element.labels import ChatStatusLabel, IconLabel, HelpLabel
+from pygpt_net.ui.widget.element.labels import ChatStatusLabel, IconLabel
 from pygpt_net.ui.widget.tabs.layout import OutputLayout
 from pygpt_net.utils import trans
 
@@ -24,6 +25,8 @@ from .calendar import Calendar
 from .painter import Painter
 
 class Output:
+    VISION_ICON_SIZE = 16
+
     def __init__(self, window=None):
         """
         Chat output UI
@@ -120,9 +123,18 @@ class Output:
         plugin_addon['audio.output'] = AudioOutput(self.window)
         plugin_addon['schedule'] = ChatStatusLabel("")
 
-        nodes['inline.vision'] = HelpLabel(trans('inline.vision'))
-        nodes['inline.vision'].setVisible(False)
+        nodes['inline.vision'] = QLabel()
+        nodes['inline.vision'].setPixmap(
+            QIcon(":/icons/vision.svg").pixmap(QSize(self.VISION_ICON_SIZE, self.VISION_ICON_SIZE))
+        )
+        nodes['inline.vision'].setAlignment(Qt.AlignCenter)
+        nodes['inline.vision'].setToolTip(trans('vision.checkbox.tooltip'))
         nodes['inline.vision'].setContentsMargins(3, 2, 0, 0)
+        nodes['inline.vision'].setFixedSize(
+            self.VISION_ICON_SIZE + 3,
+            self.VISION_ICON_SIZE + 2,
+        )
+        nodes['inline.vision'].setVisible(False)
 
         opts_layout = QHBoxLayout()
         opts_layout.setContentsMargins(0, 0, 0, 0)

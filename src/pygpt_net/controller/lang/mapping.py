@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.01.21 01:00:00                  #
+# Updated Date: 2026.09.03 21:20:00                  #
 # ================================================== #
 
 from typing import Dict
@@ -140,7 +140,6 @@ class Mapping:
         nodes['input.cancel_btn'] = 'input.btn.cancel'
         nodes['input.stop_btn'] = 'input.btn.stop'
         nodes['input.stream'] = 'input.stream'
-        nodes['inline.vision'] = 'inline.vision'
 
         # interpreter
         nodes['interpreter.all'] = 'interpreter.all'
@@ -169,9 +168,6 @@ class Mapping:
         nodes['remote_store.btn.upload.dir'] = 'dialog.remote_store.btn.upload.dir'
         nodes['remote_store.btn.close'] = 'dialog.remote_store.btn.close'
         nodes['remote_store.hide_thread'] = 'remote_store.hide_threads'
-
-        # vision
-        nodes['inline.vision'] = 'inline.vision'
 
         # dialog: plugin settings
         nodes['plugin.settings.btn.defaults.user'] = 'dialog.plugin.settings.btn.defaults.user'
