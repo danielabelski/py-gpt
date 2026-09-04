@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.08.15 23:00:00                  #
+# Updated Date: 2026.09.04 14:55:00                  #
 # ================================================== #
 
 import os
@@ -19,13 +19,21 @@ from pygpt_net.plugin.base.plugin import BasePlugin
 from pygpt_net.core.events import Event
 from pygpt_net.item.ctx import CtxItem
 
-from .config import Config
+from .config import (
+    Config,
+    IPYTHON_DOCKERFILE,
+    IPYTHON_DOCKERFILE_LEGACY,
+    PYTHON_LEGACY_DOCKERFILE,
+    PYTHON_LEGACY_DOCKERFILE_39,
+)
 from .docker import Docker
 from .builder import Builder
 from .ipython import LocalKernel
 from .ipython import DockerKernel
 from .output import Output
 from .runner import Runner
+
+from pygpt_net.core.docker.docker import migrate_default_dockerfile
 
 from pygpt_net.utils import trans
 
@@ -68,6 +76,22 @@ class Plugin(BasePlugin):
     def init_options(self):
         """Initialize options"""
         self.config.from_defaults(self)
+
+    def migrate_docker_defaults(self) -> bool:
+        """Upgrade unchanged stock Dockerfiles from the old Python 3.9 images."""
+        migrated = migrate_default_dockerfile(
+            self,
+            "ipython_dockerfile",
+            IPYTHON_DOCKERFILE_LEGACY,
+            IPYTHON_DOCKERFILE,
+        )
+        migrated_legacy = migrate_default_dockerfile(
+            self,
+            "dockerfile",
+            PYTHON_LEGACY_DOCKERFILE_39,
+            PYTHON_LEGACY_DOCKERFILE,
+        )
+        return migrated or migrated_legacy
 
     def make_temp_file_path(self, extension: str = "png"):
         """

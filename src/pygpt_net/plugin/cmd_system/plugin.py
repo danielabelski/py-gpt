@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.09.23 07:00:00                  #
+# Updated Date: 2026.09.04 14:55:00                  #
 # ================================================== #
 
 import platform
@@ -15,10 +15,12 @@ from pygpt_net.plugin.base.plugin import BasePlugin
 from pygpt_net.core.events import Event
 from pygpt_net.item.ctx import CtxItem
 
-from .config import Config
+from .config import Config, SYSTEM_DOCKERFILE, SYSTEM_DOCKERFILE_39
 from .docker import Docker
 from .output import Output
 from .runner import Runner
+
+from pygpt_net.core.docker.docker import migrate_default_dockerfile
 
 from pygpt_net.utils import trans
 
@@ -84,6 +86,15 @@ class Plugin(BasePlugin):
     def init_options(self):
         """Initialize options"""
         self.config.from_defaults(self)
+
+    def migrate_docker_defaults(self) -> bool:
+        """Upgrade an unchanged stock sandbox Dockerfile from Python 3.9."""
+        return migrate_default_dockerfile(
+            self,
+            "dockerfile",
+            SYSTEM_DOCKERFILE_39,
+            SYSTEM_DOCKERFILE,
+        )
 
     def handle(self, event: Event, *args, **kwargs):
         """

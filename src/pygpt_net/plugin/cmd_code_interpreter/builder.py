@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.07.17 02:00:00                  #
+# Updated Date: 2026.09.04 14:55:00                  #
 # ================================================== #
 
 from PySide6.QtCore import Slot, Signal, QObject
@@ -32,6 +32,7 @@ class Builder(QObject):
         :param restart: Restart container
         """
         try:
+            self.plugin.migrate_docker_defaults()
             self.plugin.window.update_status("Please wait... building...")
             self.worker = Worker()
             self.worker.plugin = self.plugin
@@ -75,9 +76,10 @@ class Worker(BaseWorker):
     @Slot()
     def run(self):
         try:
-            self.plugin.get_interpreter().build_image()
-            if self.restart:
-                self.plugin.get_interpreter().restart()
+            interpreter = self.plugin.ipython_docker
+            interpreter.build_image()
+            if self.restart and self.plugin.get_option_value("sandbox_ipython"):
+                interpreter.restart()
             self.signals.build_finished.emit()
         except Exception as e:
             self.signals.error.emit(e)

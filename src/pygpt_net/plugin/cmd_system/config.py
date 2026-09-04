@@ -6,10 +6,32 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.09.23 07:00:00                  #
+# Updated Date: 2026.09.04 14:55:00                  #
 # ================================================== #
 
 from pygpt_net.plugin.base.config import BaseConfig, BasePlugin
+
+
+SYSTEM_DOCKERFILE_39 = """
+FROM python:3.9-alpine
+
+RUN mkdir /data
+
+# Data directory, bound as a volume to the local 'data/' directory
+WORKDIR /data
+""".strip()
+
+SYSTEM_DOCKERFILE = """
+FROM python:3.12-alpine
+
+# Small set of commonly useful command-line tools.
+RUN apk add --no-cache git curl ca-certificates
+
+RUN mkdir -p /data
+
+# Data directory, bound as a volume to the local 'data/' directory.
+WORKDIR /data
+""".strip()
 
 
 class Config(BaseConfig):
@@ -23,12 +45,7 @@ class Config(BaseConfig):
 
         :param plugin: plugin instance
         """
-        dockerfile = 'FROM python:3.9-alpine'
-        dockerfile += '\n\n'
-        dockerfile += 'RUN mkdir /data'
-        dockerfile += '\n\n'
-        dockerfile += '# Data directory, bound as a volume to the local \'data/\' directory'
-        dockerfile += '\nWORKDIR /data'
+        dockerfile = SYSTEM_DOCKERFILE
 
         volumes_keys = {
             "enabled": "bool",

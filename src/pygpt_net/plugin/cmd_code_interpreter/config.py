@@ -6,10 +6,90 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.07.14 18:00:00                  #
+# Updated Date: 2026.09.04 14:55:00                  #
 # ================================================== #
 
 from pygpt_net.plugin.base.config import BaseConfig, BasePlugin
+
+
+IPYTHON_DOCKERFILE_LEGACY = """
+# Tip: After making changes to this Dockerfile, you must rebuild the image to apply the changes(Menu -> Tools -> Rebuild IPython Docker Image)
+
+FROM python:3.9
+
+# You can customize the packages installed by default here:
+# ========================================================
+RUN pip install jupyter ipykernel
+# ========================================================
+
+RUN mkdir /data
+
+# Expose the necessary ports for Jupyter kernel communication
+EXPOSE 5555 5556 5557 5558 5559
+
+# Data directory, bound as a volume to the local 'data' directory
+WORKDIR /data
+
+# Start the IPython kernel with specified ports and settings
+CMD ["ipython", "kernel",         "--ip=0.0.0.0",         "--transport=tcp",         "--shell=5555",         "--iopub=5556",         "--stdin=5557",         "--control=5558",         "--hb=5559",         "--Session.key=19749810-8febfa748186a01da2f7b28c",         "--Session.signature_scheme=hmac-sha256"]
+""".strip()
+
+IPYTHON_DOCKERFILE = r"""
+# Tip: After making changes to this Dockerfile, you must rebuild the image to apply the changes (Tools -> Docker -> Rebuild IPython Docker Image).
+
+FROM python:3.12-slim
+
+# Small set of commonly useful command-line tools.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python environment required by the IPython sandbox.
+RUN pip install --no-cache-dir jupyter ipykernel
+
+RUN mkdir -p /data
+
+# Expose the necessary ports for Jupyter kernel communication.
+EXPOSE 5555 5556 5557 5558 5559
+
+# Data directory, bound as a volume to the local 'data' directory.
+WORKDIR /data
+
+# Start the IPython kernel with specified ports and settings.
+CMD ["ipython", "kernel", \
+"--ip=0.0.0.0", \
+"--transport=tcp", \
+"--shell=5555", \
+"--iopub=5556", \
+"--stdin=5557", \
+"--control=5558", \
+"--hb=5559", \
+"--Session.key=19749810-8febfa748186a01da2f7b28c", \
+"--Session.signature_scheme=hmac-sha256"]
+""".strip()
+
+PYTHON_LEGACY_DOCKERFILE_39 = """
+FROM python:3.9-alpine
+
+RUN mkdir /data
+
+# Data directory, bound as a volume to the local 'data/' directory
+WORKDIR /data
+""".strip()
+
+PYTHON_LEGACY_DOCKERFILE = """
+FROM python:3.12-alpine
+
+# Small set of commonly useful command-line tools.
+RUN apk add --no-cache git curl ca-certificates
+
+RUN mkdir -p /data
+
+# Data directory, bound as a volume to the local 'data/' directory.
+WORKDIR /data
+""".strip()
 
 
 class Config(BaseConfig):
@@ -23,43 +103,8 @@ class Config(BaseConfig):
 
         :param plugin: plugin instance
         """
-        dockerfile = '''
-        # Tip: After making changes to this Dockerfile, you must rebuild the image to apply the changes(Menu -> Tools -> Rebuild IPython Docker Image)
-
-        FROM python:3.9
-
-        # You can customize the packages installed by default here:
-        # ========================================================
-        RUN pip install jupyter ipykernel
-        # ========================================================
-
-        RUN mkdir /data
-
-        # Expose the necessary ports for Jupyter kernel communication
-        EXPOSE 5555 5556 5557 5558 5559
-
-        # Data directory, bound as a volume to the local 'data' directory
-        WORKDIR /data
-
-        # Start the IPython kernel with specified ports and settings
-        CMD ["ipython", "kernel", \
-        "--ip=0.0.0.0", \
-        "--transport=tcp", \
-        "--shell=5555", \
-        "--iopub=5556", \
-        "--stdin=5557", \
-        "--control=5558", \
-        "--hb=5559", \
-        "--Session.key=19749810-8febfa748186a01da2f7b28c", \
-        "--Session.signature_scheme=hmac-sha256"]
-        '''
-
-        dockerfile_legacy = 'FROM python:3.9-alpine'
-        dockerfile_legacy += '\n\n'
-        dockerfile_legacy += 'RUN mkdir /data'
-        dockerfile_legacy += '\n\n'
-        dockerfile_legacy += '# Data directory, bound as a volume to the local \'data/\' directory'
-        dockerfile_legacy += '\nWORKDIR /data'
+        dockerfile = IPYTHON_DOCKERFILE
+        dockerfile_legacy = PYTHON_LEGACY_DOCKERFILE
 
         plugin.add_option(
             "sandbox_ipython",
