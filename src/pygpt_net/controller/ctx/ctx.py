@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.16 12:00:00                  #
+# Updated Date: 2026.09.04 12:20:00                  #
 # ================================================== #
 
 from typing import Optional, List, Union
@@ -697,13 +697,13 @@ class Ctx:
             force: bool = False
     ):
         """
-        Delete an exact inclusive range of context items belonging to one
-        tool-call chain.
+        Delete an exact inclusive range belonging to one grouped response
+        sequence (tool-call chain or agent-output turn).
 
         Unlike remove_items_from(), this never touches messages after end_id.
 
-        :param start_id: first ctx item id in the chain
-        :param end_id: final response ctx item id in the chain
+        :param start_id: first ctx item id in the grouped sequence
+        :param end_id: final ctx item id in the grouped sequence
         :param force: force delete
         """
         if not force:
@@ -739,20 +739,65 @@ class Ctx:
                 has_request = "<tool>" in output and "</tool>" in output
             return has_request
 
-        # Validate the range at click time. This keeps stale or manually crafted
-        # extra-delete-chain URLs from deleting unrelated messages.
-        if start_index > 0 and is_tool_reply_transition(
-                items[start_index - 1],
-                items[start_index]
-        ):
-            return
-        for i in range(start_index, end_index):
-            if not is_tool_reply_transition(items[i], items[i + 1]):
-                return
-        if end_index + 1 < len(items) and is_tool_reply_transition(
-                items[end_index],
-                items[end_index + 1]
-        ):
+        def is_agent_turn_marker(item) -> bool:
+            extra = getattr(item, "extra", None)
+            if not isinstance(extra, dict):
+                return False
+            return bool(
+                extra.get("agent_output")
+                or extra.get("agent_input")
+                or extra.get("agent_step")
+            )
+
+        def is_user_turn(item) -> bool:
+            if item is None or getattr(item, "hidden", False) or getattr(item, "internal", False):
+                return False
+            value = getattr(item, "input", None)
+            return bool(value is not None and str(value).strip())
+
+        def is_exact_tool_chain() -> bool:
+            if start_index > 0 and is_tool_reply_transition(
+                    items[start_index - 1],
+                    items[start_index]
+            ):
+                return False
+            for i in range(start_index, end_index):
+                if not is_tool_reply_transition(items[i], items[i + 1]):
+                    return False
+            if end_index + 1 < len(items) and is_tool_reply_transition(
+                    items[end_index],
+                    items[end_index + 1]
+            ):
+                return False
+            return True
+
+        def is_exact_agent_sequence() -> bool:
+            # Renderer-generated agent deletion starts at the opening visible user
+            # row (or at item 0 for malformed legacy history without one) and ends
+            # immediately before the next visible user turn.
+            if not any(
+                    is_agent_turn_marker(items[i])
+                    for i in range(start_index, end_index + 1)
+            ):
+                return False
+
+            # No second visible user turn may exist inside the grouped range.
+            for i in range(start_index + 1, end_index + 1):
+                if is_user_turn(items[i]):
+                    return False
+
+            if not is_user_turn(items[start_index]) and start_index != 0:
+                return False
+
+            # Reject stale live footers: once another non-user item was appended,
+            # the old end_id is no longer the complete agent sequence.
+            if end_index + 1 < len(items) and not is_user_turn(items[end_index + 1]):
+                return False
+            return True
+
+        # Validate the requested range at click time. This keeps stale/manually
+        # crafted extra-delete-chain URLs from removing unrelated messages.
+        if not is_exact_tool_chain() and not is_exact_agent_sequence():
             return
 
         # Snapshot the exact range before modifying the underlying container.

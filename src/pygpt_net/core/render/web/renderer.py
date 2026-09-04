@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.16 21:25:00                  #
+# Updated Date: 2026.09.04 12:20:00                  #
 # ================================================== #
 
 import json
@@ -771,6 +771,7 @@ class Renderer(BaseRenderer):
         self.tool_output_end()
         output = self.prepare_output(meta=meta, ctx=ctx, flush=flush, prev_ctx=prev_ctx, next_ctx=next_ctx)
         if output:
+            self._hide_previous_agent_action_icons(meta, ctx)
             block = self._build_render_block(meta, ctx, input_text=None, output_text=output,
                                              prev_ctx=prev_ctx, next_ctx=next_ctx)
             if block:
@@ -791,6 +792,14 @@ class Renderer(BaseRenderer):
             return
 
         pctx = self.pids[pid]
+        previous_item = pctx.item
+        previous_id = getattr(previous_item, "id", None)
+        current_id = getattr(ctx, "id", None)
+        is_new_item = previous_item is not ctx and (
+            previous_id is None or current_id is None or previous_id != current_id
+        )
+        if is_new_item:
+            self._hide_previous_agent_action_icons(meta, ctx)
         pctx.item = ctx
 
         if begin:
@@ -864,6 +873,12 @@ class Renderer(BaseRenderer):
         :param begin: True if begin of stream
         """
         pid = self.get_or_create_pid(meta)
+        previous_item = self.pids[pid].item
+        previous_id = getattr(previous_item, "id", None)
+        current_id = getattr(ctx, "id", None)
+        if previous_item is not ctx and (
+                previous_id is None or current_id is None or previous_id != current_id):
+            self._hide_previous_agent_action_icons(meta, ctx)
         self.pids[pid].item = ctx
         if text_chunk is None or text_chunk == "":
             if begin:
@@ -965,6 +980,8 @@ class Renderer(BaseRenderer):
         """
         input_text = self.prepare_input(meta, ctx, flush=False, append=False)
         output_text = self.prepare_output(meta, ctx, flush=False, prev_ctx=prev_ctx, next_ctx=next_ctx)
+        if output_text:
+            self._hide_previous_agent_action_icons(meta, ctx)
         block = self._build_render_block(meta, ctx, input_text, output_text, prev_ctx=prev_ctx, next_ctx=next_ctx)
         if block:
             pid = self.get_or_create_pid(meta)
@@ -2299,14 +2316,188 @@ class Renderer(BaseRenderer):
         image_keys, _, _ = self._get_hidden_tool_chain_extra_keys_for_ctx(ctx)
         return image_keys
 
+    @staticmethod
+    def _is_agent_turn_marker(ctx: Optional[CtxItem]) -> bool:
+        """Return True when an item is explicitly part of an agent turn."""
+        if ctx is None:
+            return False
+        extra = getattr(ctx, "extra", None)
+        if not isinstance(extra, dict):
+            return False
+        return bool(
+            extra.get("agent_output")
+            or extra.get("agent_input")
+            or extra.get("agent_step")
+        )
+
+    @staticmethod
+    def _is_user_turn_ctx(ctx: Optional[CtxItem]) -> bool:
+        """Return True when an item starts a visible, non-internal user turn."""
+        if ctx is None or getattr(ctx, "hidden", False) or getattr(ctx, "internal", False):
+            return False
+        value = getattr(ctx, "input", None)
+        return bool(value is not None and str(value).strip())
+
+    @staticmethod
+    def _ctx_has_output(ctx: Optional[CtxItem]) -> bool:
+        """Return True when an item owns a visible assistant output payload."""
+        if ctx is None or getattr(ctx, "hidden", False):
+            return False
+        value = getattr(ctx, "output", None)
+        return bool(value is not None and str(value).strip())
+
+    def _get_turn_bounds(self, items: List[CtxItem], index: int) -> Tuple[int, int]:
+        """Return [start, end] bounds of the visible turn containing index."""
+        if not items:
+            return 0, -1
+
+        start = 0
+        for pos in range(index, -1, -1):
+            if self._is_user_turn_ctx(items[pos]):
+                start = pos
+                break
+
+        end = len(items) - 1
+        for pos in range(index + 1, len(items)):
+            if self._is_user_turn_ctx(items[pos]):
+                end = pos - 1
+                break
+        return start, end
+
+    def _is_agent_turn(self, items: List[CtxItem], start: int, end: int) -> bool:
+        """Return True when the turn contains persisted agent markers."""
+        if start < 0 or end < start:
+            return False
+        return any(
+            self._is_agent_turn_marker(items[pos])
+            for pos in range(start, end + 1)
+        )
+
+    def _get_agent_action_state(
+            self,
+            items: List[CtxItem],
+            index: int,
+            state: dict
+    ) -> Optional[dict]:
+        """
+        Resolve footer/action routing for one agent-driven turn.
+
+        ``agent_output`` is the primary persisted marker used by agent responses;
+        ``agent_input`` and ``agent_step`` cover the opening/legacy intermediate
+        rows. Only the last assistant output before the next visible user turn
+        keeps the footer. Audio/copy stay on that output, edit/replay target the
+        first user row of the turn, and delete covers the whole stored turn.
+        """
+        start, end = self._get_turn_bounds(items, index)
+        if not self._is_agent_turn(items, start, end):
+            return None
+
+        last_output = None
+        for pos in range(end, start - 1, -1):
+            if self._ctx_has_output(items[pos]):
+                last_output = pos
+                break
+        if last_output is None:
+            return None
+
+        if index != last_output:
+            state["footer_icons"] = False
+            return state
+
+        cid = getattr(items[index], "id", None)
+        anchor = start
+        state["edit_replay_id"] = getattr(items[anchor], "id", cid)
+        state["delete_start_id"] = getattr(items[anchor], "id", cid)
+        state["delete_end_id"] = getattr(items[end], "id", cid)
+        return state
+
+    def _get_agent_chain_previous_ids_for_ctx(self, ctx: CtxItem) -> List[int]:
+        """Return previous rendered assistant-output IDs in ctx's agent turn."""
+        try:
+            items = list(self.window.core.ctx.get_items())
+        except Exception:
+            items = []
+
+        index = None
+        cid = getattr(ctx, "id", None)
+        for i, item in enumerate(items):
+            if item is ctx or (cid is not None and getattr(item, "id", None) == cid):
+                index = i
+                break
+
+        if index is not None:
+            start, end = self._get_turn_bounds(items, index)
+            if not self._is_agent_turn(items, start, end):
+                return []
+            return [
+                getattr(items[pos], "id")
+                for pos in range(start, index)
+                if self._ctx_has_output(items[pos])
+                and getattr(items[pos], "id", None) is not None
+            ]
+
+        # A just-created streamed item can arrive before insertion into the
+        # current context container. Follow prev_ctx back to the opening user row.
+        chain = [ctx]
+        current = ctx
+        previous = getattr(current, "prev_ctx", None)
+        guard = 0
+        while previous is not None and guard < 256:
+            chain.insert(0, previous)
+            if self._is_user_turn_ctx(previous):
+                break
+            current = previous
+            previous = getattr(current, "prev_ctx", None)
+            guard += 1
+
+        if not self._is_agent_turn(chain, 0, len(chain) - 1):
+            return []
+        return [
+            getattr(item, "id")
+            for item in chain[:-1]
+            if self._ctx_has_output(item) and getattr(item, "id", None) is not None
+        ]
+
+    def _hide_previous_agent_action_icons(self, meta: CtxMeta, ctx: CtxItem) -> None:
+        """
+        Remove stale footers from earlier already-rendered agent outputs.
+
+        Full history renders compute footer visibility from the complete item
+        list. This DOM cleanup is only needed live, when a response that was the
+        last one a moment ago must lose its footer as soon as the next agent
+        response starts.
+        """
+        ids = self._get_agent_chain_previous_ids_for_ctx(ctx)
+        if not ids:
+            return
+
+        try:
+            node = self.get_output_node(meta)
+            if node is None:
+                return
+            ids_json = json.dumps(ids, separators=(',', ':'))
+            node.page().runJavaScript(
+                "(() => {"
+                f"const ids={ids_json};"
+                "for (const id of ids) {"
+                "const box=document.getElementById('msg-bot-' + id);"
+                "if (!box) continue;"
+                "const actions=box.querySelector('.action-icons');"
+                "if (actions) actions.remove();"
+                "}"
+                "})();"
+            )
+        except Exception:
+            pass
+
     def _get_action_state(self, items: List[CtxItem], index: int) -> dict:
         """
         Resolve footer visibility and action targets for a context item.
 
-        Intermediate tool-call items do not get a footer. The final response of
-        a tool chain keeps audio/copy bound to itself, while edit/replay targets
-        the last user item that initiated the chain. Delete targets only the
-        exact tool-chain range, so later unrelated messages are never removed.
+        Intermediate grouped responses do not get a footer. The final response
+        keeps audio/copy bound to itself, while edit/replay targets the user item
+        that initiated the tool/agent sequence. Delete targets only that exact
+        grouped range, so later unrelated messages are never removed.
 
         :param items: Ordered context items
         :param index: Index of the rendered item
@@ -2328,6 +2519,12 @@ class Renderer(BaseRenderer):
             "delete_start_id": None,
             "delete_end_id": None,
         }
+
+        # Agent turns are broader than embedded tool chains, so agent routing
+        # takes precedence whenever a persisted agent marker is present.
+        agent_state = self._get_agent_action_state(items, index, state)
+        if agent_state is not None:
+            return agent_state
 
         next_ctx = items[index + 1] if index + 1 < len(items) else None
         if self._is_tool_reply_transition(ctx, next_ctx):
@@ -2363,7 +2560,7 @@ class Renderer(BaseRenderer):
         return state
 
     def _get_action_state_for_ctx(self, ctx: CtxItem) -> dict:
-        """Resolve action state for single-item render paths."""
+        """Resolve action state for single-item/live render paths."""
         try:
             items = self.window.core.ctx.get_items()
         except Exception:
@@ -2371,8 +2568,25 @@ class Renderer(BaseRenderer):
 
         cid = getattr(ctx, "id", None)
         for index, item in enumerate(items):
-            if getattr(item, "id", None) == cid:
+            if item is ctx or (cid is not None and getattr(item, "id", None) == cid):
                 return self._get_action_state(items, index)
+
+        # Fallback for a just-created streamed item not yet present in the
+        # container. Rebuild the visual turn from prev_ctx and only apply it when
+        # an agent marker (primarily ``agent_output``) confirms an agent turn.
+        chain = [ctx]
+        current = ctx
+        previous = getattr(current, "prev_ctx", None)
+        guard = 0
+        while previous is not None and guard < 256:
+            chain.insert(0, previous)
+            if self._is_user_turn_ctx(previous):
+                break
+            current = previous
+            previous = getattr(current, "prev_ctx", None)
+            guard += 1
+        if self._is_agent_turn(chain, 0, len(chain) - 1):
+            return self._get_action_state(chain, len(chain) - 1)
 
         return {
             "footer_icons": True,

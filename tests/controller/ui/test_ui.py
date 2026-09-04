@@ -113,7 +113,7 @@ def test_update_ctx_label_allowed(mock_window):
     mock_window.core.ctx.is_allowed_for_mode = MagicMock(return_value=True)
     mock_window.ui.nodes['chat.label'].setText = MagicMock()
     ui.update_ctx_label()
-    mock_window.ui.nodes['chat.label'].setText.assert_called_with(' (+)')
+    mock_window.ui.nodes['chat.label'].setText.assert_called_with('')
 
 
 def test_update_ctx_label_not_allowed(mock_window):
