@@ -149,6 +149,16 @@ class Plugin(BasePlugin):
                         cmd["instruction"] += (
                             "\nIPython works in Docker container. Directory /data is the container's workdir - "
                             "directory is mapped as volume in host machine to: {}").format(ipython_data)
+                        if self.get_option_value("ipython_run_as_root"):
+                            cmd["instruction"] += (
+                                "\nThe IPython Docker sandbox is configured to run as root. sudo is not required."
+                            )
+                        else:
+                            cmd["instruction"] += (
+                                "\nThe IPython Docker sandbox normally runs as the unprivileged 'pygpt' user. "
+                                "Ordinary pip installs do not require root; use passwordless sudo only for "
+                                "operations that require root privileges."
+                            )
                     else:
                         cmd["instruction"] += (
                             "\nIPython works in local environment. Directory {} is the workdir - "
@@ -158,6 +168,16 @@ class Plugin(BasePlugin):
                         cmd["instruction"] += (
                             "\nPython works in Docker container. Directory /data is the container's workdir - "
                             "directory is mapped as volume in host machine to: {}").format(legacy_data)
+                        if self.get_option_value("docker_run_as_root"):
+                            cmd["instruction"] += (
+                                "\nThe Python Docker sandbox is configured to run as root. sudo is not required."
+                            )
+                        else:
+                            cmd["instruction"] += (
+                                "\nThe Python Docker sandbox normally runs as the unprivileged 'pygpt' user. "
+                                "Ordinary pip installs do not require root; use passwordless sudo only for "
+                                "operations that require root privileges."
+                            )
                     else:
                         cmd["instruction"] += (
                             "\nPython works in local environment. Directory {} is the workdir - "

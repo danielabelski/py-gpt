@@ -150,6 +150,16 @@ class Plugin(BasePlugin):
                                           "Current OS is: {os}".format(
                         cwd=cwd,
                         os=os_name)
+                if item == "sys_exec" and self.get_option_value("sandbox_docker"):
+                    if self.get_option_value("docker_run_as_root"):
+                        cmd["instruction"] += (
+                            "\nThe Docker sandbox is configured to run as root. sudo is not required."
+                        )
+                    else:
+                        cmd["instruction"] += (
+                            "\nThe Docker sandbox normally runs as the unprivileged 'pygpt' user. "
+                            "Use sudo only for commands that require root privileges; sudo is passwordless."
+                        )
                 data['cmd'].append(cmd)  # append command
 
     def cmd(self, ctx: CtxItem, cmds: list, silent: bool = False):

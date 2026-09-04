@@ -17,6 +17,8 @@ import time
 import io
 import tarfile
 
+from pygpt_net.core.docker.docker import get_sandbox_user_ids
+
 class DockerKernel:
 
     NOT_READY_MSG = "IPython kernel is not initialized... try to restart the kernel with: /restart"
@@ -108,12 +110,17 @@ class DockerKernel:
         """Build the Docker image for the IPython kernel."""
         client = self.get_docker_client()
         context = self.create_docker_context(self.get_dockerfile())
+        uid, gid = get_sandbox_user_ids()
         self.log("Please wait... Building the Docker image...")
         image, logs = client.images.build(
             fileobj=context,
             custom_context=True,
             rm=True,
             tag=self.get_image_name(),
+            buildargs={
+                "PYGPT_UID": str(uid),
+                "PYGPT_GID": str(gid),
+            },
         )
         for chunk in logs:
             if 'stream' in chunk:
@@ -131,7 +138,15 @@ class DockerKernel:
         """
         from jupyter_client import BlockingKernelClient
         if self.initialized and not force:
-            return
+            if self.is_container_user_mode_current():
+                return
+            self.log("IPython sandbox user mode changed. Reinitializing the container...")
+            try:
+                if self.client is not None:
+                    self.client.stop_channels()
+            except Exception:
+                pass
+            self.initialized = False
 
         self.prepare_local_data_dir()
         self.start_container(self.get_container_name())
@@ -268,10 +283,10 @@ class DockerKernel:
             print("Running container {}...".format(name))
             self.prepare_conn()
             local_data_dir = self.get_local_data_dir()
-            client.containers.run(
-                self.get_image_name(),
-                name=name,
-                ports={
+            kwargs = {
+                "image": self.get_image_name(),
+                "name": name,
+                "ports": {
                     '5555/tcp': ports['shell'],
                     '5556/tcp': ports['iopub'],
                     '5557/tcp': ports['stdin'],
@@ -279,13 +294,20 @@ class DockerKernel:
                     '5559/tcp': ports['hb'],
                 },
                 # bind /data directory in container to the local data directory
-                volumes={
+                "volumes": {
                     local_data_dir: {
                         'bind': '/data',
                         'mode': 'rw',
                     }
                 },
-                detach=True,
+                "labels": self.get_container_labels(),
+                "detach": True,
+            }
+            user = self.get_container_user()
+            if user:
+                kwargs["user"] = user
+            client.containers.run(
+                **kwargs,
             )
             return True
         except docker.errors.APIError as e:
@@ -301,7 +323,17 @@ class DockerKernel:
         import docker.errors
         client = self.get_docker_client()
         try:
-            client.containers.get(name)
+            container = client.containers.get(name)
+            container.reload()
+            labels = container.attrs.get("Config", {}).get("Labels", {}) or {}
+            expected = self.get_container_labels()["pygpt.run_as_root"]
+            if labels.get("pygpt.run_as_root") != expected:
+                self.log(f"Container '{name}' sandbox user mode changed. Recreating it...")
+                if container.status == "running":
+                    container.stop()
+                    container.wait()
+                container.remove()
+                raise docker.errors.NotFound("Sandbox user mode changed")
         except docker.errors.NotFound:
             self.log(f"Container '{name}' not found. Creating new one...")
             self.log(f"Creating a new container: '{name}'...")
@@ -336,6 +368,37 @@ class DockerKernel:
         :return: Connection address.
         """
         return self.plugin.get_option_value('ipython_conn_addr')
+
+    def get_run_as_root(self) -> bool:
+        """Return whether the IPython sandbox should explicitly run as root."""
+        return bool(self.plugin.get_option_value("ipython_run_as_root"))
+
+    def is_container_user_mode_current(self) -> bool:
+        """Check whether the running container matches the configured user mode."""
+        import docker.errors
+        try:
+            container = self.get_docker_client().containers.get(self.get_container_name())
+            container.reload()
+            labels = container.attrs.get("Config", {}).get("Labels", {}) or {}
+            expected = self.get_container_labels()["pygpt.run_as_root"]
+            return labels.get("pygpt.run_as_root") == expected
+        except docker.errors.NotFound:
+            return False
+        except Exception:
+            # Do not force a restart solely because inspection failed.
+            return True
+
+    def get_container_user(self):
+        """Return an explicit Docker user override, if required."""
+        if self.get_run_as_root():
+            return "0:0"
+        return None
+
+    def get_container_labels(self) -> dict:
+        """Labels used to detect a sandbox user-mode change."""
+        return {
+            "pygpt.run_as_root": "true" if self.get_run_as_root() else "false",
+        }
 
     def get_bind_address(self) -> str:
         """

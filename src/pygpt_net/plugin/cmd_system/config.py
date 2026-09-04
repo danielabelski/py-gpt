@@ -21,13 +21,33 @@ RUN mkdir /data
 WORKDIR /data
 """.strip()
 
-SYSTEM_DOCKERFILE = """
+SYSTEM_DOCKERFILE = r"""
 FROM python:3.12-alpine
 
-# Small set of commonly useful command-line tools.
-RUN apk add --no-cache git curl ca-certificates
+# IDs are supplied by PyGPT while building the stock image. On Linux they
+# match the desktop user so bind-mounted files keep the correct ownership.
+ARG PYGPT_UID=1000
+ARG PYGPT_GID=1000
 
-RUN mkdir -p /data
+# Small set of commonly useful command-line tools plus passwordless sudo.
+RUN apk add --no-cache git curl ca-certificates sudo
+
+RUN set -eux; \
+    group_name="$(awk -F: -v gid="$PYGPT_GID" '$3 == gid {print $1; exit}' /etc/group)"; \
+    if [ -z "$group_name" ]; then \
+        addgroup -g "$PYGPT_GID" pygpt; \
+        group_name=pygpt; \
+    fi; \
+    adduser -D -u "$PYGPT_UID" -G "$group_name" pygpt; \
+    echo 'pygpt ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/pygpt; \
+    chmod 0440 /etc/sudoers.d/pygpt; \
+    mkdir -p /data /opt/pygpt-venv; \
+    chown -R "$PYGPT_UID:$PYGPT_GID" /data /opt/pygpt-venv
+
+# Keep Python packages installed at runtime outside the system interpreter.
+USER pygpt
+RUN python -m venv /opt/pygpt-venv
+ENV PATH="/opt/pygpt-venv/bin:/home/pygpt/.local/bin:${PATH}"
 
 # Data directory, bound as a volume to the local 'data/' directory.
 WORKDIR /data
@@ -74,6 +94,16 @@ class Config(BaseConfig):
             label="Sandbox (docker container)",
             description="Executes commands in sandbox (docker container). "
                         "Docker must be installed and running.",
+            tab="sandbox",
+        )
+        plugin.add_option(
+            "docker_run_as_root",
+            type="bool",
+            value=False,
+            label="Run as root",
+            description="Run the Docker sandbox as root. When disabled, the stock sandbox image runs as the "
+                        "unprivileged 'pygpt' user and passwordless sudo can be used for commands that require "
+                        "root privileges.",
             tab="sandbox",
         )
         plugin.add_option(

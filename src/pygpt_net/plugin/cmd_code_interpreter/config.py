@@ -39,17 +39,38 @@ IPYTHON_DOCKERFILE = r"""
 
 FROM python:3.12-slim
 
-# Small set of commonly useful command-line tools.
+# IDs are supplied by PyGPT while building the stock image. On Linux they
+# match the desktop user so bind-mounted files keep the correct ownership.
+ARG PYGPT_UID=1000
+ARG PYGPT_GID=1000
+
+# Small set of commonly useful command-line tools plus passwordless sudo.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
+    passwd \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
-# Python environment required by the IPython sandbox.
-RUN pip install --no-cache-dir jupyter ipykernel
+RUN set -eux; \
+    group_name="$(getent group "$PYGPT_GID" | cut -d: -f1 || true)"; \
+    if [ -z "$group_name" ]; then \
+        groupadd --gid "$PYGPT_GID" pygpt; \
+        group_name=pygpt; \
+    fi; \
+    useradd --uid "$PYGPT_UID" --gid "$group_name" --create-home --shell /bin/bash pygpt; \
+    echo 'pygpt ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/pygpt; \
+    chmod 0440 /etc/sudoers.d/pygpt; \
+    mkdir -p /data /opt/pygpt-venv; \
+    chown -R "$PYGPT_UID:$PYGPT_GID" /data /opt/pygpt-venv
 
-RUN mkdir -p /data
+# Python environment required by the IPython sandbox. It is owned by the
+# unprivileged user, so ordinary `pip install` does not need root privileges.
+USER pygpt
+RUN python -m venv /opt/pygpt-venv \
+    && /opt/pygpt-venv/bin/pip install --no-cache-dir jupyter ipykernel
+ENV PATH="/opt/pygpt-venv/bin:/home/pygpt/.local/bin:${PATH}"
 
 # Expose the necessary ports for Jupyter kernel communication.
 EXPOSE 5555 5556 5557 5558 5559
@@ -79,13 +100,33 @@ RUN mkdir /data
 WORKDIR /data
 """.strip()
 
-PYTHON_LEGACY_DOCKERFILE = """
+PYTHON_LEGACY_DOCKERFILE = r"""
 FROM python:3.12-alpine
 
-# Small set of commonly useful command-line tools.
-RUN apk add --no-cache git curl ca-certificates
+# IDs are supplied by PyGPT while building the stock image. On Linux they
+# match the desktop user so bind-mounted files keep the correct ownership.
+ARG PYGPT_UID=1000
+ARG PYGPT_GID=1000
 
-RUN mkdir -p /data
+# Small set of commonly useful command-line tools plus passwordless sudo.
+RUN apk add --no-cache git curl ca-certificates sudo
+
+RUN set -eux; \
+    group_name="$(awk -F: -v gid="$PYGPT_GID" '$3 == gid {print $1; exit}' /etc/group)"; \
+    if [ -z "$group_name" ]; then \
+        addgroup -g "$PYGPT_GID" pygpt; \
+        group_name=pygpt; \
+    fi; \
+    adduser -D -u "$PYGPT_UID" -G "$group_name" pygpt; \
+    echo 'pygpt ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/pygpt; \
+    chmod 0440 /etc/sudoers.d/pygpt; \
+    mkdir -p /data /opt/pygpt-venv; \
+    chown -R "$PYGPT_UID:$PYGPT_GID" /data /opt/pygpt-venv
+
+# Keep Python packages installed at runtime outside the system interpreter.
+USER pygpt
+RUN python -m venv /opt/pygpt-venv
+ENV PATH="/opt/pygpt-venv/bin:/home/pygpt/.local/bin:${PATH}"
 
 # Data directory, bound as a volume to the local 'data/' directory.
 WORKDIR /data
@@ -113,6 +154,16 @@ class Config(BaseConfig):
             label="Sandbox (docker container)",
             description="Executes commands in sandbox (docker container). "
                         "Docker must be installed and running.",
+            tab="ipython",
+        )
+        plugin.add_option(
+            "ipython_run_as_root",
+            type="bool",
+            value=False,
+            label="Run as root",
+            description="Run the IPython Docker sandbox as root. When disabled, the stock sandbox image runs as "
+                        "the unprivileged 'pygpt' user and passwordless sudo can be used for commands that require "
+                        "root privileges.",
             tab="ipython",
         )
         plugin.add_option(
@@ -261,6 +312,16 @@ class Config(BaseConfig):
             label="Sandbox (docker container)",
             description="Executes commands in sandbox (docker container). "
                         "Docker must be installed and running.",
+            tab="python_legacy",
+        )
+        plugin.add_option(
+            "docker_run_as_root",
+            type="bool",
+            value=False,
+            label="Run as root",
+            description="Run the Python Docker sandbox as root. When disabled, the stock sandbox image runs as "
+                        "the unprivileged 'pygpt' user and passwordless sudo can be used for commands that require "
+                        "root privileges.",
             tab="python_legacy",
         )
         plugin.add_option(
