@@ -31,7 +31,7 @@ File indexing
 
 The ``File indexing`` tab controls how files and directories are embedded into
 persistent indexes. Files can be indexed from the Files view with
-``RMB -> Index...``, from the Indexer tool, or by supported plugins.
+``RMB -> Embed into index``, from the Indexer tool, or by supported plugins.
 
 The main options include recursive directory indexing, replacement of old
 versions during re-indexing, excluded extensions, stop-on-error behavior, and
@@ -107,7 +107,7 @@ Using the current project index
 The active project index can be used from multiple places:
 
 * In ``Chat with Files``, choose ``Current project`` from the index selector.
-* In the Files view, use ``RMB -> Index... -> Current project`` for a file or
+* In the Files view, use ``RMB -> Embed into index -> Current project`` for a file or
   directory.
 * In the ``Chat with files (LlamaIndex, inline)`` plugin, enable
   ``Use project index if in use`` to query the active project's isolated index
