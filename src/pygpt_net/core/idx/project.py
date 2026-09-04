@@ -81,6 +81,10 @@ class Project:
     def remove_state(self, group_id: int) -> bool:
         return self.provider.remove_project(int(group_id))
 
+    def clear_states(self) -> bool:
+        """Remove all project incremental cursors without deleting indexes."""
+        return self.provider.truncate_projects()
+
     def get_last_update(self, group_id: int) -> int:
         state = self.get(group_id)
         return int(state.get("last_update", 0)) if state else 0

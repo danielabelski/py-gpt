@@ -254,6 +254,7 @@ class Storage:
                 ctx_group g ON m.group_id = g.id
             WHERE 
                 indexed_ts > 0
+                OR COALESCE(indexes_json, '{{}}') != '{{}}'
         """
         stmt = text(stmt_text)
         items = {}
@@ -387,18 +388,15 @@ class Storage:
 
     def delete_meta_by_id(self, id: int) -> bool:
         """
-        Delete ctx meta by ID
+        Delete ctx meta and all of its items.
 
-        :param id: ctx meta ID
-        :return: True if deleted
+        Items are deleted first so cleanup is deterministic even if SQLite
+        foreign-key enforcement is enabled (legacy schema uses SET NULL).
         """
-        stmt = text("""
-            DELETE FROM ctx_meta WHERE id = :id
-        """).bindparams(id=id)
         db = self.window.core.db.get_db()
         with db.begin() as conn:
-            conn.execute(stmt)
-        self.delete_items_by_meta_id(id)
+            conn.execute(text("DELETE FROM ctx_item WHERE meta_id = :id").bindparams(id=id))
+            conn.execute(text("DELETE FROM ctx_meta WHERE id = :id").bindparams(id=id))
         return True
 
     def delete_item_by_id(self, id: int) -> bool:
@@ -1244,41 +1242,29 @@ class Storage:
 
     def delete_group(self, id: int, all: bool = False) -> bool:
         """
-        Delete ctx group by ID
+        Delete ctx group by ID.
 
-        :param id: ctx group ID
-        :param all: remove items
-        :return: True if deleted
+        When ``all`` is True, remove every ctx_item belonging to the group's
+        contexts before deleting ctx_meta rows. This avoids orphaned message
+        rows regardless of SQLite foreign-key mode.
         """
-        stmt = text("""
-            DELETE FROM ctx_group WHERE id = :id
-        """).bindparams(
-            id=id,
-        )
         db = self.window.core.db.get_db()
         with db.begin() as conn:
-            conn.execute(stmt)
-
-        # remove items in group
-        if all:
-            stmt = text("""
-                DELETE FROM ctx_meta WHERE group_id = :id
-            """).bindparams(
-                id=id,
-            )
-            with db.begin() as conn:
-                conn.execute(stmt)
-        else:
-            # set group_id to NULL (remove group association)
-            stmt = text("""
-                UPDATE ctx_meta 
-                SET group_id = NULL
-                WHERE group_id = :group_id
-            """).bindparams(
-                group_id=id,
-            )
-            with db.begin() as conn:
-                conn.execute(stmt)
+            if all:
+                conn.execute(text("""
+                    DELETE FROM ctx_item
+                    WHERE meta_id IN (
+                        SELECT id FROM ctx_meta WHERE group_id = :id
+                    )
+                """).bindparams(id=id))
+                conn.execute(text("DELETE FROM ctx_meta WHERE group_id = :id").bindparams(id=id))
+            else:
+                conn.execute(text("""
+                    UPDATE ctx_meta
+                    SET group_id = NULL
+                    WHERE group_id = :id
+                """).bindparams(id=id))
+            conn.execute(text("DELETE FROM ctx_group WHERE id = :id").bindparams(id=id))
         return True
 
     def truncate_groups(self) -> bool:

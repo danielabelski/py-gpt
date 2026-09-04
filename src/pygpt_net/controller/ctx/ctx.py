@@ -651,19 +651,8 @@ class Ctx:
                 self.window.controller.ui.tabs.update_title_current("...")
 
     def delete_meta_from_idx(self, id: int):
-        """
-        Delete meta from indexes
-
-        :param id: ctx meta id
-        """
-        meta = self.window.core.ctx.get_meta_by_id(id)
-        if meta is None:
-            return
-
-        if meta.indexed is not None and meta.indexed > 0:
-            for store_id in list(meta.indexes):
-                for idx in list(meta.indexes[store_id]):
-                    self.window.core.ctx.idx.remove_meta_from_indexed(store_id, id, idx)
+        """Delete every tracked vector document for a context meta."""
+        self.window.core.idx.remove_context_data(meta_id=int(id))
 
     def delete_item(
             self,
@@ -824,10 +813,15 @@ class Ctx:
             return
 
         try:
-            self.window.core.idx.ctx.truncate()
+            # Remove conversation documents from every tracked vector store,
+            # while preserving file/external documents in the same indexes.
+            self.window.core.idx.remove_context_data()
+            # ctx_item IDs are reset below; old project cursors must not survive
+            # or new conversations could be skipped after IDs start from 1.
+            self.window.core.idx.project.clear_states()
         except Exception as e:
             self.window.core.debug.log(e)
-            print("Error truncating ctx index db", e)
+            print("Error cleaning context index data", e)
 
         self.group_id = None
         self.unselect()
@@ -853,10 +847,14 @@ class Ctx:
             return
 
         try:
-            self.window.core.idx.ctx.truncate()
+            # First remove whole project indexes while idx_ctx still tells us
+            # which vector-store backend each virtual project index belongs to.
+            # Then remove the remaining conversation documents from global indexes.
+            self.window.core.idx.truncate_projects()
+            self.window.core.idx.remove_context_data()
         except Exception as e:
             self.window.core.debug.log(e)
-            print("Error truncating ctx index db", e)
+            print("Error cleaning context/project index data", e)
 
         self.group_id = None
         self.unselect()
@@ -1512,7 +1510,11 @@ class Ctx:
             group = self.window.core.ctx.get_group_by_id(id)
             if group is not None:
                 try:
+                    # Project truncate removes the isolated index including any
+                    # project files. Then remove these conversations from every
+                    # remaining (global) index before deleting their DB rows.
                     self.window.core.idx.truncate_project(id)
+                    self.window.core.idx.remove_context_data(group_id=int(id))
                 except Exception as e:
                     self.window.core.debug.log(e)
                 self.window.core.ctx.remove_group(group, all=True)

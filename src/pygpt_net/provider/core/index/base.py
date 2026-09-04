@@ -88,6 +88,26 @@ class BaseProvider:
     ) -> bool:
         pass
 
+    def get_ctx_meta_index_data(
+            self,
+            meta_id: Optional[int] = None,
+            group_id: Optional[int] = None
+    ) -> list:
+        pass
+
+    def get_ctx_records(
+            self,
+            meta_id: Optional[int] = None,
+            group_id: Optional[int] = None
+    ) -> list:
+        pass
+
+    def remove_ctx_record(self, row_id: int) -> bool:
+        pass
+
+    def get_index_stores(self, idx: str) -> list:
+        pass
+
     def is_meta_indexed(
             self,
             store_id: str,

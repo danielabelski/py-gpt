@@ -119,6 +119,26 @@ class DbSqliteProvider(BaseProvider):
         """
         return self.storage.insert_external(store_id, idx, data)
 
+    def get_ctx_meta_index_data(
+            self,
+            meta_id: Optional[int] = None,
+            group_id: Optional[int] = None
+    ) -> list:
+        return self.storage.get_ctx_meta_index_data(meta_id=meta_id, group_id=group_id)
+
+    def get_ctx_records(
+            self,
+            meta_id: Optional[int] = None,
+            group_id: Optional[int] = None
+    ) -> list:
+        return self.storage.get_ctx_records(meta_id=meta_id, group_id=group_id)
+
+    def remove_ctx_record(self, row_id: int) -> bool:
+        return self.storage.remove_ctx_record(row_id)
+
+    def get_index_stores(self, idx: str) -> list:
+        return self.storage.get_index_stores(idx)
+
     def is_meta_indexed(
             self,
             store_id: str,

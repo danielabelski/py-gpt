@@ -16,6 +16,7 @@ from typing import Optional
 from llama_index.core.indices.base import BaseIndex
 from llama_index.core import StorageContext
 from llama_index.core.indices.vector_store.base import VectorStoreIndex
+from llama_index.core.embeddings.mock_embed_model import MockEmbedding
 
 
 class BaseStore:
@@ -180,7 +181,15 @@ class BaseStore:
         :param doc_id: document ID
         :return: True if success
         """
-        index = self.get(id)
+        # Deleting an existing document must not initialize the configured
+        # embedding provider. LlamaIndex resolves a default OpenAI embedding
+        # model when ``embed_model`` is omitted, which can make a pure delete
+        # operation fail when no OpenAI API key is configured. A mock model is
+        # sufficient here because ``delete_ref_doc`` never embeds content.
+        index = self.get(
+            id,
+            embed_model=MockEmbedding(embed_dim=1),
+        )
         index.delete_ref_doc(doc_id)
         self.store(
             id=id,

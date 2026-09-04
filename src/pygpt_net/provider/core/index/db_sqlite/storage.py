@@ -281,6 +281,79 @@ class Storage:
 
         return id
 
+
+    def get_ctx_meta_index_data(
+            self,
+            meta_id: Optional[int] = None,
+            group_id: Optional[int] = None
+    ) -> list:
+        """Return raw ctx_meta indexes_json rows for destructive cleanup."""
+        db = self.window.core.db.get_db()
+        query = """
+            SELECT id AS meta_id, indexes_json
+            FROM ctx_meta
+            WHERE COALESCE(indexes_json, '{}') != '{}'
+        """
+        params = {}
+        if meta_id is not None:
+            query += " AND id = :meta_id"
+            params["meta_id"] = int(meta_id)
+        if group_id is not None:
+            query += " AND group_id = :group_id"
+            params["group_id"] = int(group_id)
+        query += " ORDER BY id ASC"
+        with db.connect() as conn:
+            return [dict(row._mapping) for row in conn.execute(text(query).bindparams(**params))]
+
+    def get_ctx_records(
+            self,
+            meta_id: Optional[int] = None,
+            group_id: Optional[int] = None
+    ) -> list:
+        """Return tracked context-index rows, optionally filtered by meta/project."""
+        db = self.window.core.db.get_db()
+        query = """
+            SELECT c.id, c.meta_id, c.doc_id, c.store, c.idx, c.created_ts, c.updated_ts
+            FROM idx_ctx c
+        """
+        params = {}
+        if group_id is not None:
+            query += " INNER JOIN ctx_meta m ON m.id = c.meta_id"
+        where = []
+        if meta_id is not None:
+            where.append("c.meta_id = :meta_id")
+            params["meta_id"] = int(meta_id)
+        if group_id is not None:
+            where.append("m.group_id = :group_id")
+            params["group_id"] = int(group_id)
+        if where:
+            query += " WHERE " + " AND ".join(where)
+        query += " ORDER BY c.id ASC"
+        with db.connect() as conn:
+            return [dict(row._mapping) for row in conn.execute(text(query).bindparams(**params))]
+
+    def remove_ctx_record(self, row_id: int) -> bool:
+        """Delete one idx_ctx tracking row by its primary key."""
+        db = self.window.core.db.get_db()
+        with db.begin() as conn:
+            conn.execute(text("DELETE FROM idx_ctx WHERE id = :id").bindparams(id=int(row_id)))
+        return True
+
+    def get_index_stores(self, idx: str) -> list:
+        """Return stores that have local tracking rows for an index."""
+        db = self.window.core.db.get_db()
+        stmt = text("""
+            SELECT DISTINCT store FROM (
+                SELECT store FROM idx_file WHERE idx = :idx
+                UNION ALL
+                SELECT store FROM idx_ctx WHERE idx = :idx
+                UNION ALL
+                SELECT store FROM idx_external WHERE idx = :idx
+            ) WHERE store IS NOT NULL AND store != ''
+        """).bindparams(idx=idx)
+        with db.connect() as conn:
+            return [str(row[0]) for row in conn.execute(stmt) if row[0]]
+
     def is_meta_indexed(
             self,
             store_id: str,

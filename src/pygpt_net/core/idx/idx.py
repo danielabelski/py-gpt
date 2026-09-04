@@ -10,6 +10,7 @@
 # ================================================== #
 
 import datetime
+import json
 from typing import Optional, Tuple, List, Dict, Any
 
 from packaging.version import Version
@@ -163,24 +164,101 @@ class Idx:
     def remove_index(
             self,
             idx: str = "base",
-            truncate: bool = False
+            truncate: bool = False,
+            store_id: Optional[str] = None
     ) -> bool:
         """Remove/truncate an index and all local tracking rows."""
         idx = self.resolve_idx(idx)
         if idx is None:
             return False
-        store = self.get_current_store()
+        store = store_id or self.get_current_store()
         self.ctx.truncate(store, idx)
         self.files.truncate(store, idx)
         self.external.truncate(store, idx)
         self.window.core.ctx.idx.truncate_indexed(store, idx)
         try:
-            exists = self.storage.exists(idx)
+            if store_id is None:
+                exists = self.storage.exists(idx)
+            else:
+                exists = self.storage.exists(idx, store_id=store)
         except Exception:
             exists = False
         if not exists:
             return True
-        return self.storage.truncate(idx) if truncate else self.storage.remove(idx)
+        if store_id is None:
+            return self.storage.truncate(idx) if truncate else self.storage.remove(idx)
+        if truncate:
+            return self.storage.truncate(idx, store_id=store)
+        return self.storage.remove(idx, store_id=store)
+
+    def remove_context_data(
+            self,
+            meta_id: Optional[int] = None,
+            group_id: Optional[int] = None
+    ) -> int:
+        """
+        Remove conversation documents from vector stores and ``idx_ctx``.
+
+        ``idx_ctx`` stores one current doc_id per context/index, while project
+        indexing may have inserted multiple documents for the same context.
+        Therefore cleanup merges both sources of truth: ``ctx_meta.indexes_json``
+        (all known doc IDs) and ``idx_ctx`` (tracking/orphan fallback).
+        """
+        provider = self.get_provider()
+        rows = provider.get_ctx_records(meta_id=meta_id, group_id=group_id)
+        meta_rows = provider.get_ctx_meta_index_data(
+            meta_id=meta_id, group_id=group_id
+        )
+
+        docs = set()
+        for meta_row in meta_rows:
+            raw = meta_row.get('indexes_json')
+            try:
+                data = json.loads(raw) if isinstance(raw, str) else raw
+            except Exception:
+                data = {}
+            if not isinstance(data, dict):
+                continue
+            for store, indexes in data.items():
+                if not isinstance(indexes, dict):
+                    continue
+                for idx, doc_data in indexes.items():
+                    if isinstance(doc_data, dict):
+                        doc_ids = list(doc_data.keys())
+                    elif isinstance(doc_data, (list, tuple, set)):
+                        doc_ids = list(doc_data)
+                    elif doc_data:
+                        doc_ids = [doc_data]
+                    else:
+                        doc_ids = []
+                    for doc_id in doc_ids:
+                        if store and idx and doc_id:
+                            docs.add((str(store), str(idx), str(doc_id)))
+
+        # Tracking rows are also used as a fallback for legacy/stale metadata
+        # and allow cleanup of orphan idx_ctx rows whose ctx_meta is already gone.
+        for row in rows:
+            store = row.get('store')
+            idx = row.get('idx')
+            doc_id = row.get('doc_id')
+            if store and idx and doc_id:
+                docs.add((str(store), str(idx), str(doc_id)))
+
+        for store, idx, doc_id in docs:
+            try:
+                if self.storage.exists(idx, store_id=store):
+                    self.storage.remove_document(idx, doc_id, store_id=store)
+            except Exception as e:
+                # The vector store can already be gone or unavailable. DB
+                # tracking still has to be cleaned to avoid permanent garbage.
+                self.window.core.debug.log(e)
+
+        for row in rows:
+            row_id = int(row.get('id') or 0)
+            if row_id:
+                provider.remove_ctx_record(row_id)
+
+        return len(docs)
 
     def index_files(
             self, idx: str = "base", path: Optional[str] = None,
@@ -308,8 +386,17 @@ class Idx:
 
     def truncate_project(self, group_id: int) -> bool:
         idx = self.project.get_idx_id(group_id)
+        ok = True
+        stores = set(self.get_provider().get_index_stores(idx))
+        stores.add(self.get_current_store())
         try:
-            return self.remove_index(idx, truncate=True)
+            for store_id in [store for store in stores if store]:
+                try:
+                    ok = self.remove_index(idx, truncate=True, store_id=store_id) and ok
+                except Exception as e:
+                    ok = False
+                    self.window.core.debug.log(e)
+            return ok
         finally:
             # Never leave a stale incremental cursor after a truncate attempt.
             self.project.remove_state(group_id)
@@ -329,13 +416,18 @@ class Idx:
 
         # Also clean project indexes created by file indexing before idx_proj
         # existed, as long as they are discoverable in index tracking tables.
-        for idx in self.get_provider().get_index_ids(self.get_current_store()):
-            if self.project.is_project_idx(idx) and idx not in handled:
-                try:
-                    ok = self.remove_index(idx, truncate=True) and ok
-                except Exception as e:
-                    ok = False
-                    self.window.core.debug.log(e)
+        stores = set(self.storage.get_ids())
+        stores.add(self.get_current_store())
+        for store_id in [store for store in stores if store]:
+            for idx in self.get_provider().get_index_ids(store_id):
+                if self.project.is_project_idx(idx) and idx not in handled:
+                    try:
+                        ok = self.remove_index(
+                            idx, truncate=True, store_id=store_id
+                        ) and ok
+                    except Exception as e:
+                        ok = False
+                        self.window.core.debug.log(e)
         self.get_provider().truncate_projects()
         return ok
 
@@ -483,19 +575,26 @@ class Idx:
             else:
                 self.files.update(record['id'], doc_id, ts)
 
-    def remove_doc(self, idx: str, doc_id: str):
+    def remove_doc(self, idx: str, doc_id: str, store_id: Optional[str] = None):
         idx = self.resolve_idx(idx)
         if idx is None:
             return
-        self.llm.get_service_context(stream=False)
-        if self.storage.exists(idx) and self.storage.remove_document(idx, doc_id):
+        store = store_id or self.get_current_store()
+        if store_id is None:
+            exists = self.storage.exists(idx)
+            removed = exists and self.storage.remove_document(idx, doc_id)
+        else:
+            exists = self.storage.exists(idx, store_id=store)
+            removed = exists and self.storage.remove_document(
+                idx, doc_id, store_id=store
+            )
+        if removed:
             self.log(f"Removed document from index: {idx} - {doc_id}")
 
     def remove_file(self, idx: str, file: str):
         idx = self.resolve_idx(idx)
         if idx is None:
             return
-        self.llm.get_service_context(stream=False)
         store_id = self.get_current_store()
         file_id = self.files.get_id(file)
         record = self.files.get_record(store_id, idx, file_id)

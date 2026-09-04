@@ -3267,6 +3267,10 @@ may consume additional tokens that are not displayed in the main window.
 
 **2.8.8 (2026-09-04)**
 
+- Fixed tool-calls responses in Chat with Files when using Responses API.
+- Added editing and remixing features to Image generation (inline) plugin. It allows image diting and remixing directly in chat.
+- Upgraded default Docker image definitions for sandboxed IPython and System - Python 3.12 as default, added initial packages, added non-root runs.
+- Improved agent responses rendering.
 - Added isolated per-project LlamaIndex indexes, created and resolved automatically as **Current project** without adding project-specific entries to the regular indexes list.
 - Added project-aware context auto-indexing with **Off**, **Auto-index all conversations**, and **Auto-index only in projects** policies, plus a **Use isolated index per project** option.
 - Added incremental project context indexing with per-project progress tracking, project index update/truncate actions, cleanup on project deletion, and index rebuilding when duplicating projects.
@@ -3274,6 +3278,7 @@ may consume additional tokens that are not displayed in the main window.
 - Added **Clear and truncate** index management, including permanent deletion of stored indexes and batch truncation of project indexes.
 - Improved index/file tracking with lazy loading to avoid loading the complete indexed-files database into memory.
 - Reorganized LlamaIndex settings into **File indexing**, **Context indexing**, **Data loaders**, and **Clear and truncate** sections and clarified that removing an index from the configured list does not delete its stored data.
+
 
 **2.8.7 (2026-09-04)**
 
@@ -3291,33 +3296,6 @@ may consume additional tokens that are not displayed in the main window.
 - Added a visual screen flash / blink effect after screenshot and camera capture.
 - Fixed math rendering of < and > symbols in KaTeX expressions.
 - Fixed rendering of the \neq / \ne math symbols - issue #199.
-
-**2.8.5 (2026-09-02)**
-
-- Local Whisper audio input improvements: optimized execution and error handling, added an option to keep the model loaded in RAM, and simplified local model configuration.
-- Added Vision support for local Ollama models. To enable it, simply enable **Image input** in the model settings (if the selected model supports vision).
-- Fixed Ollama connection in Chat with files mode.
-- Added **Ask with screenshot → Select region...** to the tray menu, allowing interactive selection of a screen region for screenshot capture.
-- Added new Ollama models: `SpeakLeash/bielik-11b-v3.0-instruct:Q4_K_M`, `deepseek-r1:8b`, `gemma4:e4b`, `llama4:scout`, `mistral-small3.2`, `nemotron-3.5-lightning:30b`, `qwen3.6:27b`, and `qwen3.5:9b`.
-- Removed **Assistants** mode because the OpenAI Assistants API was deprecated and shut down on August 26, 2026.
-
-**2.8.4 (2026-08-19)**
-
-- Added a new Security settings section for host-side plugin permissions.
-- Added separate read and write restrictions for local filesystem access outside the workdir `data` directory.
-- Added per-system Linux, Windows, and macOS system-command whitelists and blacklists, with the whitelist taking precedence when enabled.
-- Added shared filesystem and command security checks across filesystem-capable plugins and host-side command execution.
-- Added `Permission denied` tool responses that point to `Settings -> Security` when filesystem access is blocked.
-- Added a Computer Use tab in Security settings.
-- Added `Halt on potentially unsafe operation`, enabled by default.
-- Added explicit user confirmation for provider-flagged potentially unsafe Computer Use operations in OpenAI and Google providers.
-- Added per-model custom API endpoint and API key settings.
-- Improved the Models Editor advanced settings layout and added missing field descriptions and translations.
-- Moved application-managed temporary files for audio input, HTML Canvas, Code Interpreter/IPython, and the Transcript tool to the workdir `tmp` directory.
-- Centered the audio input/output level meter in the bottom input bar.
-- Fixed the Painter tool restoring the wrong color icon after application restart.
-- Fixed escaped Unicode characters in stored and displayed command/tool JSON, including nested tool responses.
-- Updated examples and documentation.
 
 
 # Credits and links
