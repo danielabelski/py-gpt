@@ -493,7 +493,7 @@ For a visualization from OpenAI's page, see this picture:
 
 Source: https://cdn.openai.com/new-and-improved-embedding-model/draft-20221214a/vectors-3.svg
 
-To index your files, simply copy or upload them  into the `data` directory and initiate indexing (embedding) by clicking the `Index all` button, or right-click on a file and select `Index...`. Additionally, you have the option to utilize data from indexed files in any Chat mode by activating the `Chat with Files (LlamaIndex, inline)` plugin.
+To index your files, simply copy or upload them  into the `data` directory and initiate indexing (embedding) by clicking the `Index all` button, or right-click on a file and select `Embed into index`. Additionally, you have the option to utilize data from indexed files in any Chat mode by activating the `Chat with Files (LlamaIndex, inline)` plugin.
 
 ![v2_idx1](https://github.com/szczyglis-dev/py-gpt/raw/master/docs/source/images/v2_idx1.png)
 
@@ -548,7 +548,7 @@ LlamaIndex is also integrated with the context database, so conversation history
 
 PyGPT separates file indexing from conversation-context indexing:
 
-- **File indexing** indexes files and directories into a selected persistent vector index. Use `Settings -> Indexes / LlamaIndex -> File indexing`, the **Index all** action, or `Files -> RMB -> Index...`.
+- **File indexing** indexes files and directories into a selected persistent vector index. Use `Settings -> Indexes / LlamaIndex -> File indexing`, the **Index all** action, or `Files -> RMB -> Embed into index`.
 - **Context indexing** indexes stored conversation items from the context database. It is configured in `Settings -> Indexes / LlamaIndex -> Context indexing`.
 - **Project indexes** are isolated runtime indexes associated with projects. They are created and resolved automatically and do not need to be added to the normal configured indexes list.
 
@@ -565,7 +565,7 @@ The **Enable auto-indexing in modes** setting further limits which work modes ma
 Project-aware indexing is also available outside automatic context indexing:
 
 - In **Chat with Files**, select **Current project** to query the active project's isolated index.
-- In the **Files** tab, `RMB -> Index... -> Current project` indexes the selected file or directory into the active project.
+- In the **Files** tab, `RMB -> Embed into index -> Current project` indexes the selected file or directory into the active project.
 - The **Chat with Files (LlamaIndex, inline)** and **Files I/O** plugins can automatically use the active project index when their **Use project index if in use** option is enabled (default: enabled).
 - The project context menu provides **Update project index** and **Truncate project index** actions. Updating continues incrementally; truncating removes the project's index data and resets its indexing state.
 - Deleting a project also removes its project index. Duplicating a project rebuilds a corresponding isolated index only when the source project had one.
@@ -3265,12 +3265,15 @@ may consume additional tokens that are not displayed in the main window.
 
 ## Recent changes:
 
-**2.8.8 (2026-09-04)**
+**2.8.8 (2026-09-05)**
 
-- Fixed tool-calls responses in Chat with Files when using Responses API.
-- Added editing and remixing features to Image generation (inline) plugin. It allows image diting and remixing directly in chat.
-- Upgraded default Docker image definitions for sandboxed IPython and System - Python 3.12 as default, added initial packages, added non-root runs.
-- Improved agent responses rendering.
+- Fixed tool call responses in Chat with Files when using the Responses API.
+- Fixed attachment uploads in Chat with Files mode.
+- Fixed an issue where the remote store `after_update` hook silently failed to run — PR #203.
+- Improved agent response rendering.
+- Improved vector store cleanup when deleting contexts.
+- Added image editing and remixing features to the inline Image Generation plugin, allowing images to be edited and remixed directly in chat.
+- Upgraded the default Docker image definitions for sandboxed IPython and System environments: Python 3.12 is now the default, essential packages were added, and containers now run as a non-root user by default.
 - Added isolated per-project LlamaIndex indexes, created and resolved automatically as **Current project** without adding project-specific entries to the regular indexes list.
 - Added project-aware context auto-indexing with **Off**, **Auto-index all conversations**, and **Auto-index only in projects** policies, plus a **Use isolated index per project** option.
 - Added incremental project context indexing with per-project progress tracking, project index update/truncate actions, cleanup on project deletion, and index rebuilding when duplicating projects.

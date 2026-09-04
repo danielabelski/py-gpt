@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2.8.8 (2026-09-05)
+
+- Fixed tool call responses in Chat with Files when using the Responses API.
+- Fixed attachment uploads in Chat with Files mode.
+- Fixed an issue where the remote store `after_update` hook silently failed to run — PR #203.
+- Improved agent response rendering.
+- Improved vector store cleanup when deleting contexts.
+- Added image editing and remixing features to the inline Image Generation plugin, allowing images to be edited and remixed directly in chat.
+- Upgraded the default Docker image definitions for sandboxed IPython and System environments: Python 3.12 is now the default, essential packages were added, and containers now run as a non-root user by default.
+- Added isolated per-project LlamaIndex indexes, created and resolved automatically as **Current project** without adding project-specific entries to the regular indexes list.
+- Added project-aware context auto-indexing with **Off**, **Auto-index all conversations**, and **Auto-index only in projects** policies, plus a **Use isolated index per project** option.
+- Added incremental project context indexing with per-project progress tracking, project index update/truncate actions, cleanup on project deletion, and index rebuilding when duplicating projects.
+- Added project-aware indexing and retrieval to **Chat with Files**, the **Chat with Files (LlamaIndex, inline)** plugin, **Files I/O**, and the Files context menu.
+- Added **Clear and truncate** index management, including permanent deletion of stored indexes and batch truncation of project indexes.
+- Improved index/file tracking with lazy loading to avoid loading the complete indexed-files database into memory.
+- Reorganized LlamaIndex settings into **File indexing**, **Context indexing**, **Data loaders**, and **Clear and truncate** sections and clarified that removing an index from the configured list does not delete its stored data.
+
 ## 2.8.7 (2026-09-04)
 
 - Improved Painter with new drawing modes: **Free**, **Arrow**, **Rectangle**, **Circle**, and **Line**, making it faster and easier to annotate images and screenshots with common shapes and symbols.
