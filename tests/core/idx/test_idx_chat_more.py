@@ -162,7 +162,10 @@ def test_query_stream_true_and_false(monkeypatch):
     chat.get_custom_prompt = Mock(return_value=None)
     chat.get_metadata = Mock(return_value={"m":"v"})
     ctx_item = FakeCtx("hello")
-    context = SimpleNamespace(idx="idx", model=FakeModelItem(), system_prompt_raw="sys", stream=True, ctx=ctx_item)
+    context = SimpleNamespace(
+        idx="idx", model=FakeModelItem(), system_prompt_raw="sys",
+        stream=True, ctx=ctx_item, prompt="hello with attachment context",
+    )
     index = Mock()
     engine = Mock()
     resp = FakeResponseObj(response=None, response_gen="GEN", source_nodes=[FakeNode("id1","t",0.9,{"k":"v"})])
@@ -173,15 +176,20 @@ def test_query_stream_true_and_false(monkeypatch):
     chat.window.core.tokens.from_llama_messages = Mock(return_value=123)
     r = chat.query(context)
     assert r is True
+    engine.query.assert_called_once_with("hello with attachment context")
     assert ctx_item._meta == {"m":"v"}
     assert ctx_item.stream == "GEN"
     assert ctx_item.input_tokens == 123
     ctx_item2 = FakeCtx("hey")
-    context2 = SimpleNamespace(idx="idx", model=FakeModelItem(), system_prompt_raw="sys", stream=False, ctx=ctx_item2)
+    context2 = SimpleNamespace(
+        idx="idx", model=FakeModelItem(), system_prompt_raw="sys",
+        stream=False, ctx=ctx_item2, prompt=None,
+    )
     resp2 = FakeResponseObj(response="ANSWER", response_gen=None, source_nodes=[FakeNode("id2","tx",0.8,{"k":"v"})])
     engine.query = Mock(return_value=resp2)
     r2 = chat.query(context2)
     assert r2 is True
+    engine.query.assert_called_once_with("hey")
     assert ctx_item2._meta == {"m":"v"}
     assert ctx_item2.input_tokens == 123
     assert ctx_item2._output == ("ANSWER", "")
@@ -190,7 +198,10 @@ def test_query_returns_false_when_no_response(monkeypatch):
     chat = make_chat(monkeypatch)
     monkeypatch.setattr(chat_mod, "ModelItem", FakeModelItem)
     ctx_item = FakeCtx("x")
-    context = SimpleNamespace(idx="idx", model=FakeModelItem(), system_prompt_raw="", stream=False, ctx=ctx_item)
+    context = SimpleNamespace(
+        idx="idx", model=FakeModelItem(), system_prompt_raw="",
+        stream=False, ctx=ctx_item, prompt=None,
+    )
     index = Mock()
     engine = Mock()
     engine.query = Mock(return_value=None)
@@ -202,7 +213,10 @@ def test_query_returns_false_when_no_response(monkeypatch):
 def test_retrieval_builds_output_and_metadata(monkeypatch):
     chat = make_chat(monkeypatch)
     ctx_item = FakeCtx("q")
-    context = SimpleNamespace(idx="idx", model=FakeModelItem(), stream=False, ctx=ctx_item)
+    context = SimpleNamespace(
+        idx="idx", model=FakeModelItem(), stream=False, ctx=ctx_item,
+        prompt="retrieval with attachment context",
+    )
     node1 = SimpleNamespace(text="T1", score=0.9)
     node2 = SimpleNamespace(text="T2", score=0.5)
     retriever = SimpleNamespace(retrieve=Mock(return_value=[node1, node2]))
@@ -212,6 +226,7 @@ def test_retrieval_builds_output_and_metadata(monkeypatch):
     chat.get_metadata = Mock(return_value={"m": "v"})
     res = chat.retrieval(context)
     assert res is True
+    retriever.retrieve.assert_called_once_with("retrieval with attachment context")
     assert "**Score: 0.9**" in ctx_item._output[0]
     assert ctx_item._meta == {"m": "v"}
 

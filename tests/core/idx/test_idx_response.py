@@ -141,10 +141,43 @@ def test_from_index_stream_sets_stream_and_clears_output():
     assert ctx.stream is gen
 
 
-def test_from_llm_stream_sets_stream_and_clears_output():
+def test_from_llm_stream_wraps_stream_and_clears_output():
     ctx = SimpleNamespace(set_output=Mock(), stream=None)
-    response = SimpleNamespace(delta="chunk")
+    chunk = SimpleNamespace(delta="chunk", message=None)
+    response = iter([chunk])
     r = Response()
     r.from_llm_stream(ctx, model=Mock(), llm=Mock(), response=response)
+
     ctx.set_output.assert_called_once_with("", "")
-    assert ctx.stream is response
+    assert ctx.stream is not response
+    assert list(ctx.stream) == [chunk]
+
+
+def test_from_llm_stream_preserves_native_tool_call_message():
+    tool_message = SimpleNamespace(
+        blocks=[],
+        additional_kwargs={
+            "tool_calls": [{
+                "id": "call_1",
+                "function": {
+                    "name": "read_file",
+                    "arguments": '{"path":"a.txt"}',
+                },
+            }]
+        },
+    )
+    chunk = SimpleNamespace(delta=None, message=tool_message)
+    chat = SimpleNamespace(prev_message=None)
+    debug = SimpleNamespace(info=Mock(), log=Mock())
+    window = SimpleNamespace(
+        core=SimpleNamespace(idx=SimpleNamespace(chat=chat), debug=debug)
+    )
+    ctx = SimpleNamespace(set_output=Mock(), stream=None)
+
+    r = Response(window=window)
+    r.from_llm_stream(ctx, model=Mock(), llm=Mock(), response=iter([chunk]))
+
+    assert list(ctx.stream) == [chunk]
+    assert chat.prev_message is tool_message
+    debug.info.assert_called_once()
+    debug.log.assert_not_called()

@@ -157,11 +157,17 @@ def test_index_project_full_rebuild_truncates_old_project_index(mock_window):
 
 def test_truncate_project_always_removes_tracking_state(mock_window):
     idx = Idx(mock_window)
+    idx.get_provider().get_index_stores = MagicMock(return_value=[])
+    idx.get_current_store = MagicMock(return_value="test_store")
     idx.remove_index = MagicMock(side_effect=RuntimeError("storage failure"))
     idx.project.remove_state = MagicMock(return_value=True)
 
-    with pytest.raises(RuntimeError, match="storage failure"):
-        idx.truncate_project(9)
+    # Truncation is best-effort: storage errors are logged and reported via
+    # False, while tracking state must still be removed in the finally block.
+    assert idx.truncate_project(9) is False
 
-    idx.remove_index.assert_called_once_with("proj_9", truncate=True)
+    idx.remove_index.assert_called_once_with(
+        "proj_9", truncate=True, store_id="test_store"
+    )
     idx.project.remove_state.assert_called_once_with(9)
+    mock_window.core.debug.log.assert_called_once()
