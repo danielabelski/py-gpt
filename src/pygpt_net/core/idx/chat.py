@@ -791,7 +791,12 @@ class Chat:
         :param model: model instance
         :param stream: stream mode
         """
+        requested_idx = idx
+        idx = self.window.core.idx.resolve_idx(idx)
         # check if index exists
+        if idx is None:
+            llm, embed_model = self.window.core.idx.llm.get_service_context(model=model, stream=stream)
+            return self.storage.index_from_empty(embed_model), llm
         if not self.storage.exists(idx):
             if idx is None:
                 # create empty in memory idx
@@ -802,6 +807,10 @@ class Chat:
 
         llm, embed_model = self.window.core.idx.llm.get_service_context(model=model, stream=stream)
         index = self.storage.get(idx, llm, embed_model)  # get index
+        if self.window.core.idx.project.is_virtual(requested_idx):
+            group_id = self.window.core.idx.project.get_group_id_from_idx(idx)
+            if group_id is not None:
+                self.window.core.idx.project.ensure(group_id)
         return index, llm
 
     def get_metadata(

@@ -280,6 +280,12 @@ class Confirm:
             self.window.controller.idx.indexer.clear(id, True)
         elif type == 'idx.truncate':
             self.window.controller.idx.indexer.truncate(id, True)
+        elif type == 'idx.project.truncate':
+            self.window.controller.idx.indexer.truncate_project(id, True)
+        elif type == 'idx.projects.truncate':
+            self.window.controller.idx.indexer.truncate_projects(True)
+        elif type == 'idx.settings.truncate':
+            self.window.controller.idx.indexer.truncate(id, True)
 
         # index tool
         elif type == 'idx.tool.truncate':

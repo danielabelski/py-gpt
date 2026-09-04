@@ -175,6 +175,34 @@ class Plugin(BasePlugin):
             prepared_question = response
         return prepared_question
 
+    def get_effective_idx(self, idx: str = None) -> str:
+        """Return effective retrieval index selection.
+
+        Explicit indexes are preserved. For the configured default selection,
+        the virtual current-project ID is controlled exclusively by the
+        ``use_project_index`` option and is ignored if left behind in an older
+        saved bool-list value.
+        """
+        if idx is not None:
+            return idx
+
+        if self.get_option_value("use_project_index"):
+            project_idx = self.window.core.idx.get_current_project_idx(virtual=True)
+            if project_idx is not None:
+                return project_idx
+
+        value = self.get_option_value("idx")
+        if value is None:
+            return ""
+        virtual_id = self.window.core.idx.project.VIRTUAL_ID
+        indexes = []
+        for item in str(value).split(","):
+            item = item.strip()
+            if not item or item == "_" or item == virtual_id or item in indexes:
+                continue
+            indexes.append(item)
+        return ",".join(indexes)
+
     def get_from_retrieval(self, query: str, idx: str = None) -> str:
         """
         Get response from retrieval
@@ -183,9 +211,8 @@ class Plugin(BasePlugin):
         :param idx: index to query, if None then use default index
         :return: response
         """
-        if idx is None:
-            idx = self.get_option_value("idx")
-        indexes = idx.split(",")
+        idx = self.get_effective_idx(idx)
+        indexes = [item.strip() for item in idx.split(",") if item.strip()]
         response = ""
         for index in indexes:
             response = self.window.core.idx.chat.query_retrieval(query, index)
@@ -239,8 +266,7 @@ class Plugin(BasePlugin):
         """
         doc_ids = []
         metas = []
-        if idx is None:
-            idx = self.get_option_value("idx")
+        idx = self.get_effective_idx(idx)
         model = self.window.core.models.from_defaults()
 
         if self.get_option_value("model_query") is not None:

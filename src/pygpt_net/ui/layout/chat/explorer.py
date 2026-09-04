@@ -29,7 +29,7 @@ class Explorer:
         :return: TabBody
         """
         # index status data
-        index_data = self.window.core.idx.get_idx_data()  # get all idx data
+        index_data = {}  # file index status is resolved lazily per visible path
 
         # file explorer
         path = self.window.core.config.get_user_dir('data')

@@ -45,6 +45,15 @@ class IndexWorker(QRunnable):
             self.log("Indexing data...")
             self.log(f"Idx: {self.idx}, type: {self.type}, content: {self.content}, from_ts: {self.from_ts}")
 
+            # Resolve runtime-only project alias once at worker start so an
+            # asynchronous completion cannot accidentally switch projects.
+            if self.idx is not None:
+                requested_idx = self.idx
+                resolved_idx = self.window.core.idx.resolve_idx(requested_idx)
+                if self.window.core.idx.project.is_virtual(requested_idx) and resolved_idx is None:
+                    raise RuntimeError("Current project index requested outside a project")
+                self.idx = resolved_idx
+
             # execute indexing
             if self.type == "file":
                 result, errors = self.window.core.idx.index_files(
@@ -86,6 +95,16 @@ class IndexWorker(QRunnable):
                 result, errors = self.window.core.idx.index_db_from_updated_ts(
                     self.idx,
                     self.content,
+                )
+            elif self.type == "db_project":
+                result, errors = self.window.core.idx.index_project(
+                    int(self.content),
+                    from_last=bool(self.replace),
+                )
+            elif self.type == "project_duplicate":
+                source_group_id, target_group_id = self.content
+                result, errors = self.window.core.idx.duplicate_project_index(
+                    int(source_group_id), int(target_group_id)
                 )
             elif self.type == "web":
                 result, errors = self.window.core.idx.index_web(

@@ -619,9 +619,13 @@ Vision model used by the Image (vision) data loader when API mode is active. *De
 
 Audio/video transcription is configured separately in the ``Audio Input`` plugin and uses the provider selected there.
 
+- ``Use project index if in use`` *use_project_index*
+
+When enabled and the current conversation belongs to a project, the plugin queries that project's isolated ``Current project`` index instead of the configured global indexes. Outside a project, the configured indexes are used normally. *Default:* `True`
+
 - ``Index name`` *idx*
 
-Indexes to use. If you want to use multiple indexes at once then separate them by comma. *Default:* `base`
+Indexes to use outside an active project, or when project-index usage is disabled. If you want to use multiple indexes at once then separate them by comma. *Default:* `base`
 
 
 Code Interpreter
@@ -1255,9 +1259,13 @@ Model used for query temporary index for `query_file` command (in-memory index).
 
 Allows `file_index` command execution. If enabled, model will be able to index file or directory using LlamaIndex (persistent index). *Default:* `True`
 
+- ``Use project index if in use`` *use_project_index*
+
+When enabled and the current conversation belongs to a project, persistent file indexing targets that project's isolated ``Current project`` index instead of the configured global file index. Outside a project, the configured index is used normally. *Default:* `True`
+
 - ``Index to use when indexing files`` *idx*
 
-ID of index to use for indexing files (persistent index). *Default:* `base`
+ID of the normal index to use for persistent file indexing when no active project index is selected. *Default:* `base`
 
 - ``Auto index reading files`` *auto_index*
 

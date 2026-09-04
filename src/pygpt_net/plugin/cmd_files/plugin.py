@@ -158,6 +158,42 @@ class Plugin(BasePlugin):
         except Exception as e:
             self.error(e)
 
+    def get_index_names(self) -> list:
+        """Return effective index targets for file indexing.
+
+        The isolated current-project index takes precedence when project-aware
+        indexing is enabled. Otherwise, return all global indexes selected in
+        the plugin bool-list option.
+        """
+        if self.get_option_value("use_project_index"):
+            idx = self.window.core.idx.get_current_project_idx(virtual=True)
+            if idx is not None:
+                return [idx]
+
+        value = self.get_option_value("idx")
+        if value is None:
+            return []
+        if isinstance(value, (list, tuple, set)):
+            raw = value
+        else:
+            raw = str(value).split(",")
+
+        indexes = []
+        for idx in raw:
+            idx = str(idx).strip()
+            if (not idx
+                    or idx == "_"
+                    or idx == self.window.core.idx.project.VIRTUAL_ID
+                    or idx in indexes):
+                continue
+            indexes.append(idx)
+        return indexes
+
+    def get_index_name(self) -> str:
+        """Return first effective index target (backward-compatible helper)."""
+        indexes = self.get_index_names()
+        return indexes[0] if indexes else ""
+
     def read_as_text(self, path: str, use_loaders: bool = True) -> str:
         """
         Read file and return content as text

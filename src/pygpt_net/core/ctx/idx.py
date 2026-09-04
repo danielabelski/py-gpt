@@ -134,7 +134,8 @@ class Idx:
             self,
             id: int,
             idx: str,
-            doc_id: str
+            doc_id: str,
+            update_timestamp: bool = True
     ) -> bool:
         """
         Set ctx meta as indexed
@@ -163,13 +164,17 @@ class Idx:
         else:
             # update document id in index db if already indexed, by meta id
             self.window.core.idx.ctx.update(
+                store_id=store,
+                idx=idx,
                 meta_id=id,  # ctx meta id
                 doc_id=doc_id,  # document id
             )
 
-        # update ctx meta indexed timestamp
-        self.get_provider().set_meta_indexed_by_id(id, ts)
-        self.window.core.ctx.update_indexed_ts_by_id(id, ts)
+        # Project indexes have their own incremental cursor in idx_proj; do not
+        # move the global ctx_meta.indexed_ts cursor when indexing a project.
+        if update_timestamp:
+            self.get_provider().set_meta_indexed_by_id(id, ts)
+            self.window.core.ctx.update_indexed_ts_by_id(id, ts)
 
         # append index data to ctx meta object
         self.store_idx_data_in_meta(meta, store, idx, doc_id)

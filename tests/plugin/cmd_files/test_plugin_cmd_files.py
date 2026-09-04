@@ -78,3 +78,41 @@ def test_handle_cmd_execute(mock_window):
     event.ctx = ctx
     plugin.handle(event)
     mock_window.threadpool.start.assert_called_once()
+
+
+def test_project_index_option_defaults_to_enabled(mock_window):
+    plugin = Plugin(window=mock_window)
+    plugin.init_options()
+
+    assert plugin.get_option_value("use_project_index") is True
+
+
+def test_get_index_name_prefers_current_project(mock_window):
+    plugin = Plugin(window=mock_window)
+    plugin.init_options()
+    plugin.set_option_value("use_project_index", True)
+    plugin.set_option_value("idx", "base")
+    mock_window.core.idx.get_current_project_idx = MagicMock(return_value="__project__")
+
+    assert plugin.get_index_name() == "__project__"
+
+
+def test_get_index_name_falls_back_to_configured_global_index(mock_window):
+    plugin = Plugin(window=mock_window)
+    plugin.init_options()
+    plugin.set_option_value("use_project_index", True)
+    plugin.set_option_value("idx", "docs")
+    mock_window.core.idx.get_current_project_idx = MagicMock(return_value=None)
+
+    assert plugin.get_index_name() == "docs"
+
+
+def test_get_index_name_can_disable_project_override(mock_window):
+    plugin = Plugin(window=mock_window)
+    plugin.init_options()
+    plugin.set_option_value("use_project_index", False)
+    plugin.set_option_value("idx", "docs")
+    mock_window.core.idx.get_current_project_idx = MagicMock(return_value="__project__")
+
+    assert plugin.get_index_name() == "docs"
+    mock_window.core.idx.get_current_project_idx.assert_not_called()

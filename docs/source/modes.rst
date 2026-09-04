@@ -122,11 +122,14 @@ Built-in file loaders:
 * Webpages (crawling any webpage content)
 * YouTube (transcriptions)
 
-You can configure data loaders in ``Settings -> Indexes / LlamaIndex -> Data Loaders`` by providing list of keyword arguments for specified loaders.
+You can configure data loaders in ``Settings -> Indexes / LlamaIndex -> Data loaders`` by providing list of keyword arguments for specified loaders.
 You can also develop and provide your own custom loader and register it within the application.
 
-LlamaIndex is also integrated with context database - you can use data from database (your context history) as additional context in discussion. 
-Options for indexing existing context history or enabling real-time indexing new ones (from database) are available in ``Settings -> Indexes / LlamaIndex`` section.
+LlamaIndex is also integrated with the context database, so conversation history can be indexed and used as additional RAG context. File indexing and conversation-context indexing are configured separately in ``Settings -> Indexes / LlamaIndex -> File indexing`` and ``Context indexing``.
+
+Project conversations can use an isolated ``Current project`` index. When ``Use isolated index per project`` is enabled, project context is kept separate from the global auto-indexing targets and is updated incrementally. The same project index can be selected in Chat with Files, from the Files context menu, and by project-aware plugins.
+
+See :doc:`indexing` for the complete description of file indexing, context auto-indexing modes, isolated project indexes, project lifecycle, and truncation.
 
 .. warning::
    Remember that when indexing content, API calls to the embedding model are used. Each indexing consumes additional tokens. Always control the number of tokens used on the provider's page.

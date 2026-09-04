@@ -46,6 +46,7 @@ class Placeholder:
             "keys_modifiers": lambda p: self.get_modifiers(),
             "langchain_providers": lambda p: self.get_langchain_providers(),
             "languages": lambda p: self.get_languages(),
+            "llama_index_auto_index_policy": lambda p: self.get_llama_index_auto_index_policy(),
             "llama_index_chat_modes": lambda p: self.get_llama_index_chat_modes(),
             "llama_index_loaders": lambda p: self.get_llama_index_loaders(),
             "llama_index_loaders_file": lambda p: self.get_llama_index_loaders(type="file"),
@@ -407,10 +408,21 @@ class Placeholder:
         data = []
         if "none" not in params or params["none"] is True:
             data.append({'_': '---'})
+        if params.get("project", True) and self.window.core.idx.project.get_current_group_id() is not None:
+            data.append({self.window.core.idx.project.VIRTUAL_ID: trans('idx.current_project')})
         for item in indexes:
             for k, v in item.items():
                 data.append({k: v})
         return data
+
+
+    def get_llama_index_auto_index_policy(self) -> List[Dict[str, str]]:
+        """Return conversation auto-indexing policy choices."""
+        return [
+            {"off": trans("settings.llama.extra.btn.idx_auto.mode.off")},
+            {"all": trans("settings.llama.extra.btn.idx_auto.mode.all")},
+            {"projects": trans("settings.llama.extra.btn.idx_auto.mode.projects")},
+        ]
 
     def get_syntax_styles(self) -> List[Dict[str, str]]:
         """

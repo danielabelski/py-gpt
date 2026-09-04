@@ -2,7 +2,7 @@
 
 [![pygpt](https://snapcraft.io/pygpt/badge.svg)](https://snapcraft.io/pygpt)
 
-Release: **2.8.7** | build: **2026-09-04** | Python: **>=3.10, <3.14**
+Release: **2.8.8** | build: **2026-09-04** | Python: **>=3.10, <3.14**
 
 > Official website: https://pygpt.net | [Documentation](https://pygpt.readthedocs.io) | [Discord](https://pygpt.net/discord)
 > 
@@ -542,8 +542,35 @@ Built-in file loaders:
 You can configure data loaders in `Settings / Indexes / LlamaIndex / Data Loaders` by providing list of keyword arguments for specified loaders.
 You can also develop and provide your own custom loader and register it within the application.
 
-LlamaIndex is also integrated with context database - you can use data from database (your context history) as additional context in discussion. 
-Options for indexing existing context history or enabling real-time indexing new ones (from database) are available in `Settings / Indexes / LlamaIndex` section.
+LlamaIndex is also integrated with the context database, so conversation history can be indexed and used as additional RAG context. Context indexing is configured separately from file indexing in `Settings -> Indexes / LlamaIndex -> Context indexing`.
+
+### File, context, and project indexing
+
+PyGPT separates file indexing from conversation-context indexing:
+
+- **File indexing** indexes files and directories into a selected persistent vector index. Use `Settings -> Indexes / LlamaIndex -> File indexing`, the **Index all** action, or `Files -> RMB -> Index...`.
+- **Context indexing** indexes stored conversation items from the context database. It is configured in `Settings -> Indexes / LlamaIndex -> Context indexing`.
+- **Project indexes** are isolated runtime indexes associated with projects. They are created and resolved automatically and do not need to be added to the normal configured indexes list.
+
+The **Conversation auto-indexing** setting has three modes:
+
+- **Off** - disables automatic conversation-context indexing.
+- **Auto-index all conversations** - enables automatic context indexing for conversations both inside and outside projects.
+- **Auto-index only in projects** - enables automatic context indexing only for conversations assigned to projects.
+
+The **Use isolated index per project** option controls where conversations inside projects are stored. When enabled, each project uses its own isolated index. PyGPT exposes it in the UI as **Current project** and internally resolves it to a project-specific ID such as `proj_<project_id>`. These project indexes are created and updated on demand and are not added to the normal `Indexes` list. When this option is disabled, project conversations use the global auto-indexing index or indexes selected in **Indexes for global auto-indexing**.
+
+The **Enable auto-indexing in modes** setting further limits which work modes may trigger automatic context indexing. Project context indexing is incremental: PyGPT tracks the last indexed conversation item and continues from that point on subsequent updates.
+
+Project-aware indexing is also available outside automatic context indexing:
+
+- In **Chat with Files**, select **Current project** to query the active project's isolated index.
+- In the **Files** tab, `RMB -> Index... -> Current project` indexes the selected file or directory into the active project.
+- The **Chat with Files (LlamaIndex, inline)** and **Files I/O** plugins can automatically use the active project index when their **Use project index if in use** option is enabled (default: enabled).
+- The project context menu provides **Update project index** and **Truncate project index** actions. Updating continues incrementally; truncating removes the project's index data and resets its indexing state.
+- Deleting a project also removes its project index. Duplicating a project rebuilds a corresponding isolated index only when the source project had one.
+
+Removing an entry from `Settings -> Indexes / LlamaIndex -> Indexes` removes only the configuration entry; it does **not** delete data already stored in the vector store. Use the **Clear and truncate** tab to permanently remove a selected index or all tracked project indexes.
 
 **WARNING:** remember that when indexing content, API calls to the embedding model are used. Each indexing consumes additional tokens. Always control the number of tokens used on the provider's page.
 
@@ -1457,6 +1484,8 @@ Documentation: https://pygpt.readthedocs.io/en/latest/plugins.html#bitbucket
 ## Chat with Files (LlamaIndex, inline)
 
 Plugin integrates `LlamaIndex` storage in any chat and provides additional knowledge into context. The plugin also provides the `Image model` setting used by the Image (vision) data loader when API mode is active (default: `gpt-4o`). Audio/video transcription is not configured here; it uses the provider selected in the `Audio Input` plugin.
+
+When **Use project index if in use** is enabled (default), the plugin automatically queries the isolated **Current project** index whenever the active conversation belongs to a project. Outside a project it uses the configured regular index or indexes.
 
 Documentation: https://pygpt.readthedocs.io/en/latest/plugins.html#chat-with-files-llamaindex-inline
 
@@ -2627,7 +2656,7 @@ Remote tools are available only when supported by the selected provider/API mode
 
 **Indexes / LlamaIndex**
 
-- `Indexes`: List of configured indexes.
+- `Indexes`: List of configured indexes. Removing an entry from this list does not delete index data; use `Clear and truncate` to permanently remove stored data.
 
 *Vector Store*
 
@@ -2655,7 +2684,7 @@ Remote tools are available only when supported by the selected provider/API mode
 
 - `Default embedding providers for attachments`: Define embedding model by provider to use in attachments.
 
-*Indexing*
+*File indexing*
 
 - `Recursive directory indexing`: Enables recursive directory indexing. Default: False.
 
@@ -2671,19 +2700,25 @@ Remote tools are available only when supported by the selected provider/API mode
 
 - `Custom metadata to append/replace to indexed documents (web/external content)`: Define custom metadata key => value fields for specified external data loaders. Allowed placeholders: {date}, {date_time}, {time}, {timestamp} + {data loader args}.
 
+*Context indexing*
+
+- `Conversation auto-indexing`: Controls automatic indexing of stored conversation context. Available values: `Off`, `Auto-index all conversations`, and `Auto-index only in projects`. Default: Off.
+
+- `Use isolated index per project`: If enabled, conversations inside a project are indexed into that project's isolated index. If disabled, project conversations use the selected global auto-indexing index or indexes. Default: True.
+
+- `Indexes for global auto-indexing`: Selects one or more configured indexes used for global conversation auto-indexing. This setting does not apply to isolated per-project indexes. Default: base.
+
+- `Enable auto-indexing in modes`: Selects the modes in which automatic conversation-context indexing is allowed.
+
 *Data loaders*
 
 - `Additional keyword arguments (**kwargs) for data loaders`: Additional keyword arguments (**kwargs), such as settings, API keys, for the data loader. These arguments will be passed to the loader; please refer to the PyGPT documentation or LlamaHub loaders reference for a list of allowed arguments for the specified data loader. One argument per single row.
 
 - `Use local models in Video/Audio and Image (vision) loaders`: Enable usage of local models in Video/Audio and Image (vision) loaders. If disabled, the Image (vision) loader uses the image model configured in the `Chat with Files (LlamaIndex, inline)` plugin, while the Video/Audio loader uses the speech-recognition provider configured in the `Audio Input` plugin. Note: local models work only in the Python version (not compiled/Snap). Default: False.
 
-*Update*
+*Clear and truncate*
 
-- `Auto-index DB in real-time (in the background of conversation)`: Enables automatic conversation-context indexing in the background. Default: False.
-
-- `ID of the index for auto-indexing`: Selects the index used for automatic context indexing. Default: base.
-
-- `Enable auto-index in modes`: Available modes: chat, llama_index, audio, research, completion, img, vision, agent_llama, agent, expert.
+- Removing an index from the `Indexes` list does not remove data from the vector store. Use this tab to permanently truncate a selected configured/stored index or all project indexes.
 
 **Agents and experts**
 
@@ -3229,6 +3264,16 @@ may consume additional tokens that are not displayed in the main window.
 # CHANGELOG
 
 ## Recent changes:
+
+**2.8.8 (2026-09-04)**
+
+- Added isolated per-project LlamaIndex indexes, created and resolved automatically as **Current project** without adding project-specific entries to the regular indexes list.
+- Added project-aware context auto-indexing with **Off**, **Auto-index all conversations**, and **Auto-index only in projects** policies, plus a **Use isolated index per project** option.
+- Added incremental project context indexing with per-project progress tracking, project index update/truncate actions, cleanup on project deletion, and index rebuilding when duplicating projects.
+- Added project-aware indexing and retrieval to **Chat with Files**, the **Chat with Files (LlamaIndex, inline)** plugin, **Files I/O**, and the Files context menu.
+- Added **Clear and truncate** index management, including permanent deletion of stored indexes and batch truncation of project indexes.
+- Improved index/file tracking with lazy loading to avoid loading the complete indexed-files database into memory.
+- Reorganized LlamaIndex settings into **File indexing**, **Context indexing**, **Data loaders**, and **Clear and truncate** sections and clarified that removing an index from the configured list does not delete its stored data.
 
 **2.8.7 (2026-09-04)**
 

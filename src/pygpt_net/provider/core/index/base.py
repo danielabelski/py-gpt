@@ -72,7 +72,9 @@ class BaseProvider:
 
     def update_ctx_meta(
             self,
-            id: int,
+            store_id: str,
+            idx: str,
+            meta_id: int,
             doc_id: str
     ) -> bool:
         pass
@@ -92,6 +94,14 @@ class BaseProvider:
             idx: str,
             meta_id: int
     ) -> bool:
+        pass
+
+    def get_ctx_updated_ts(
+            self,
+            store_id: str,
+            idx: str,
+            meta_id: Optional[int] = None
+    ) -> int:
         pass
 
     def is_file_indexed(

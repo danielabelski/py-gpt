@@ -558,7 +558,7 @@ class Files:
 
         :param: reload: reload explorer root dir
         """
-        data = self.window.core.idx.get_idx_data()  # get all files data, from all indexes
+        data = {}  # indexed file rows are lazy-loaded by the explorer model
         self.window.ui.nodes['output_files'].index_data = data
         if reload:
             root = self.window.core.config.get_user_dir('data')

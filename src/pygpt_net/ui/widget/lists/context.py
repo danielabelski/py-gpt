@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.03 14:23:00                  #
+# Updated Date: 2026.09.04 20:10:00                  #
 # ================================================== #
 
 import datetime
@@ -1346,6 +1346,41 @@ class ContextList(BaseList):
         self._refresh_hover_from_cursor()
         QtCore.QTimer.singleShot(0, self._refresh_hover_from_cursor)
 
+    @staticmethod
+    def _get_common_project_group_id(ctx_list) -> int | None:
+        """Return a project ID when every selected context belongs to the same project."""
+        if not ctx_list:
+            return None
+        group_ids = set()
+        for ctx in ctx_list:
+            group_id = getattr(ctx, "group_id", None)
+            if group_id is None:
+                return None
+            try:
+                group_id = int(group_id)
+            except (TypeError, ValueError):
+                return None
+            if group_id <= 0:
+                return None
+            group_ids.add(group_id)
+            if len(group_ids) > 1:
+                return None
+        return next(iter(group_ids)) if group_ids else None
+
+    @staticmethod
+    def _get_ctx_store_indexes(ctx, store: str) -> set[str]:
+        """Return index IDs currently tracked for a context in the selected store."""
+        indexes = getattr(ctx, "indexes", None)
+        if not isinstance(indexes, dict):
+            return set()
+        store_indexes = indexes.get(store, {})
+        if isinstance(store_indexes, dict):
+            return {str(idx) for idx in store_indexes.keys()}
+        # Compatibility with older/alternate serialized forms.
+        if isinstance(store_indexes, (list, tuple, set)):
+            return {str(idx) for idx in store_indexes}
+        return set()
+
     def _build_multi_context_menu(self, ids: list[int]) -> QMenu:
         """
         Build aggregated context menu for multiple selected items.
@@ -1402,29 +1437,57 @@ class ContextList(BaseList):
         idx_menu = QMenu(trans('action.idx'), self)
         idxs = self.window.core.config.get('llama.idx.list')
         store = self.window.core.idx.get_current_store()
+        project_group_id = self._get_common_project_group_id(ctx_list)
+        project_idx = None
+        indexed_by_ctx = [self._get_ctx_store_indexes(c, store) for c in ctx_list]
+        has_index_target = False
 
-        # Provide all available "index to" targets
+        # A project-local target is available only when every selected context
+        # belongs to the same project. Hide it when every selected context is
+        # already tracked in that project index; it will then be available only
+        # in the "Remove from index" section below.
+        if project_group_id is not None:
+            project_idx = self.window.core.idx.project.get_idx_id(project_group_id)
+            if not indexed_by_ctx or not all(project_idx in current for current in indexed_by_ctx):
+                action = idx_menu.addAction(
+                    self._icons['db'],
+                    "IDX: " + trans('idx.current_project'),
+                )
+                action.triggered.connect(functools.partial(self.action_idx, ids, project_idx))
+                has_index_target = True
+
+        # Provide configured global "index to" targets only when at least one
+        # selected context is not already indexed there.
         if idxs:
             for idx_dict in idxs:
-                index_id = idx_dict['id']
+                index_id = str(idx_dict['id'])
+                if indexed_by_ctx and all(index_id in current for current in indexed_by_ctx):
+                    continue
                 name = idx_dict['name'] + " (" + idx_dict['id'] + ")"
                 action = idx_menu.addAction(self._icons['db'], "IDX: " + name)
                 action.triggered.connect(functools.partial(self.action_idx, ids, index_id))
+                has_index_target = True
 
-            # Provide "remove from" for the union of indexes over the current store
-            union_store_indexes = set()
-            for c in ctx_list:
-                if getattr(c, "indexed", None) and getattr(c, "indexes", None):
-                    if store in c.indexes:
-                        for sidx in c.indexes[store]:
-                            union_store_indexes.add(sidx)
-            if union_store_indexes:
+        # Provide "remove from" for the union of indexes over the current store.
+        union_store_indexes = set().union(*indexed_by_ctx) if indexed_by_ctx else set()
+        if union_store_indexes:
+            if has_index_target:
                 idx_menu.addSeparator()
-                for store_index in sorted(union_store_indexes):
-                    action = idx_menu.addAction(self._icons['delete'], trans("action.idx.remove") + ": " + store_index)
-                    action.triggered.connect(
-                        functools.partial(self.action_idx_remove, store_index, ids)
-                    )
+            for store_index in sorted(union_store_indexes):
+                display_idx = (
+                    trans('idx.current_project')
+                    if project_idx is not None and store_index == project_idx
+                    else store_index
+                )
+                action = idx_menu.addAction(
+                    self._icons['delete'],
+                    trans("action.idx.remove") + ": " + display_idx,
+                )
+                action.triggered.connect(
+                    functools.partial(self.action_idx_remove, store_index, ids)
+                )
+
+        if has_index_target or union_store_indexes:
             menu.addMenu(idx_menu)
 
         # Group operations
@@ -1551,6 +1614,27 @@ class ContextList(BaseList):
                 a_new.triggered.connect(functools.partial(self.window.controller.ctx.new_in_group, force=False, group_id=id_value))
                 a_rename = menu.addAction(self._icons['edit'], trans('action.rename'))
                 a_rename.triggered.connect(functools.partial(self.window.controller.ctx.rename_group, id_value))
+                a_duplicate = menu.addAction(self._icons['copy'], trans('action.group.duplicate'))
+                a_duplicate.triggered.connect(functools.partial(self.window.controller.ctx.duplicate_group, id_value))
+
+                menu.addSeparator()
+                state = self.window.core.idx.project.get(id_value)
+                last_update = int(state.get('last_update', 0)) if state else 0
+                if last_update > 0:
+                    last_str = datetime.datetime.fromtimestamp(last_update).strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    last_str = trans('settings.llama.extra.db.never')
+                update_label = trans('idx.project.update') + " (" + trans('idx.last') + ": " + last_str + ")"
+                a_idx_update = menu.addAction(self._icons['db'], update_label)
+                a_idx_update.triggered.connect(
+                    functools.partial(self.window.controller.ctx.update_project_index, id_value)
+                )
+                a_idx_truncate = menu.addAction(self._icons['delete'], trans('idx.project.truncate'))
+                a_idx_truncate.triggered.connect(
+                    functools.partial(self.window.controller.ctx.truncate_project_index, id_value)
+                )
+
+                menu.addSeparator()
                 a_delete = menu.addAction(self._icons['delete'], trans('action.group.delete.only'))
                 a_delete.triggered.connect(functools.partial(self.window.controller.ctx.delete_group, id_value))
                 a_delete_all = menu.addAction(self._icons['delete'], trans('action.group.delete.all'))
@@ -1603,22 +1687,51 @@ class ContextList(BaseList):
                 idx_menu = QMenu(trans('action.idx'), self)
                 idxs = self.window.core.config.get('llama.idx.list')
                 store = self.window.core.idx.get_current_store()
+                project_group_id = self._get_common_project_group_id([ctx])
+                project_idx = None
+                store_indexes = self._get_ctx_store_indexes(ctx, store)
+                has_index_target = False
+
+                if project_group_id is not None:
+                    project_idx = self.window.core.idx.project.get_idx_id(project_group_id)
+                    if project_idx not in store_indexes:
+                        action = idx_menu.addAction(
+                            self._icons['db'],
+                            "IDX: " + trans('idx.current_project'),
+                        )
+                        action.triggered.connect(
+                            functools.partial(self.action_idx, ctx_id, project_idx)
+                        )
+                        has_index_target = True
+
                 if idxs:
                     for idx_dict in idxs:
-                        index_id = idx_dict['id']
+                        index_id = str(idx_dict['id'])
+                        if index_id in store_indexes:
+                            continue
                         name = idx_dict['name'] + " (" + idx_dict['id'] + ")"
                         action = idx_menu.addAction(self._icons['db'], "IDX: " + name)
                         action.triggered.connect(functools.partial(self.action_idx, ctx_id, index_id))
+                        has_index_target = True
 
-                    if ctx.indexed is not None and ctx.indexed > 0:
-                        if store in ctx.indexes:
-                            store_indexes = ctx.indexes[store]
-                            idx_menu.addSeparator()
-                            for store_index in store_indexes:
-                                action = idx_menu.addAction(self._icons['delete'], trans("action.idx.remove") + ": " + store_index)
-                                action.triggered.connect(
-                                    functools.partial(self.action_idx_remove, store_index, ctx_id)
-                                )
+                if store_indexes:
+                    if has_index_target:
+                        idx_menu.addSeparator()
+                    for store_index in sorted(store_indexes):
+                        display_idx = (
+                            trans('idx.current_project')
+                            if project_idx is not None and store_index == project_idx
+                            else store_index
+                        )
+                        action = idx_menu.addAction(
+                            self._icons['delete'],
+                            trans("action.idx.remove") + ": " + display_idx,
+                        )
+                        action.triggered.connect(
+                            functools.partial(self.action_idx_remove, store_index, ctx_id)
+                        )
+
+                if has_index_target or store_indexes:
                     menu.addMenu(idx_menu)
 
                 group_menu = QMenu(trans('action.move_to'), self)

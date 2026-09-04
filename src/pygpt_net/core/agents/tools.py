@@ -94,11 +94,18 @@ class Tools:
         """
         tool = None
 
-        # add query engine tool if idx is provided
+        # add query engine tool if idx is provided. Resolve the virtual
+        # Current project ID only at runtime, keeping normal configured index
+        # IDs untouched.
         idx = extra.get("agent_idx", None)
         if self.window.core.idx.is_valid(idx):
+            storage_idx = idx
+            if self.window.core.idx.project.is_virtual(idx) is True:
+                storage_idx = self.window.core.idx.resolve_idx(idx)
+            if storage_idx is None:
+                return tool
             llm, embed_model = self.window.core.idx.llm.get_service_context(model=context.model)
-            index = self.window.core.idx.storage.get(idx, llm, embed_model)  # get index
+            index = self.window.core.idx.storage.get(storage_idx, llm, embed_model)
             if index is not None:
                 query_engine = index.as_query_engine(similarity_top_k=3)
                 tool = [
@@ -393,8 +400,13 @@ class Tools:
                 return "Context is not set for query_engine tool."
             if not self.window.core.idx.is_valid(self.agent_idx):
                 return "Agent index is not set for query_engine tool."
+            storage_idx = self.agent_idx
+            if self.window.core.idx.project.is_virtual(storage_idx) is True:
+                storage_idx = self.window.core.idx.resolve_idx(storage_idx)
+            if storage_idx is None:
+                return "Agent index is not set for query_engine tool."
             llm, embed_model = self.window.core.idx.llm.get_service_context(model=self.context.model)
-            index = self.window.core.idx.storage.get(self.agent_idx, llm, embed_model)  # get index
+            index = self.window.core.idx.storage.get(storage_idx, llm, embed_model)
             if index is not None:
                 query_engine = index.as_query_engine(similarity_top_k=3)
                 response = query_engine.query(params["query"])

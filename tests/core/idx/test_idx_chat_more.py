@@ -85,6 +85,12 @@ def make_window(config_map=None):
             return "/tmp/userdir"
     tokens = SimpleNamespace(from_llama_messages=Mock(return_value="TOKENS"))
     debug = SimpleNamespace(info=Mock())
+    project = SimpleNamespace(
+        is_virtual=lambda value: value == "__project__",
+        get_group_id_from_idx=lambda value: int(value.split("_", 1)[1])
+        if isinstance(value, str) and value.startswith("proj_") else None,
+        ensure=Mock(),
+    )
     idx = SimpleNamespace(
         llm=SimpleNamespace(
             get=Mock(),
@@ -93,7 +99,9 @@ def make_window(config_map=None):
         indexing=SimpleNamespace(
             index_files=Mock(),
             index_urls=Mock()
-        )
+        ),
+        resolve_idx=lambda value: "proj_7" if value == "__project__" else value,
+        project=project,
     )
     models = SimpleNamespace(is_tool_call_allowed=lambda mode, model: True, from_defaults=lambda: FakeModelItem())
     plugins = SimpleNamespace(get_option=lambda a,b: False)
@@ -312,6 +320,22 @@ def test_get_index_creates_empty_and_returns_existing(monkeypatch):
     storage.get = Mock(return_value="IDX")
     idx2, llm2 = chat.get_index("name", FakeModelItem(), stream=True)
     assert idx2 == "IDX"
+
+
+def test_get_index_resolves_virtual_project_and_registers_it(monkeypatch):
+    storage = Mock()
+    storage.exists = Mock(return_value=True)
+    storage.get = Mock(return_value="PROJECT_IDX")
+    chat = make_chat(monkeypatch, storage=storage)
+    monkeypatch.setattr(chat_mod, "ModelItem", FakeModelItem)
+    chat.window.core.idx.llm.get_service_context = Mock(return_value=("LLM", "EMBED"))
+
+    index, llm = chat.get_index("__project__", FakeModelItem(), stream=False)
+
+    assert index == "PROJECT_IDX"
+    storage.exists.assert_called_once_with("proj_7")
+    storage.get.assert_called_once_with("proj_7", "LLM", "EMBED")
+    chat.window.core.idx.project.ensure.assert_called_once_with(7)
 
 def test_get_metadata_filters_and_limits():
     chat = make_chat(lambda m: None) if False else make_chat

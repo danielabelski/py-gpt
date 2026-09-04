@@ -1321,6 +1321,58 @@ class Ctx:
         # self.select_group(id)
         self.group_id = id
 
+    def duplicate_group(self, id: int):
+        """Duplicate a project and rebuild its project index only if the source has one."""
+        group = self.window.core.ctx.get_group_by_id(id)
+        if group is None:
+            return
+        new_group = self.window.core.ctx.make_group(group.name + " (copy)")
+        new_group_id = self.window.core.ctx.insert_group(new_group)
+        if new_group_id is None:
+            return
+
+        source_metas = [
+            meta for meta in self.window.core.ctx.get_meta().values()
+            if getattr(meta, 'group_id', None) == id
+        ]
+        for meta in source_metas:
+            new_meta_id = self.window.core.ctx.duplicate(meta.id)
+            if new_meta_id is not None:
+                new_meta = self.window.core.ctx.get_meta_by_id(new_meta_id)
+                if new_meta is not None:
+                    # A duplicate must not inherit source index bookkeeping.
+                    # Its project index is rebuilt below as proj_<new_group_id>.
+                    new_meta.indexes = {}
+                    new_meta.indexed = None
+                    self.window.core.ctx.idx.get_provider().update_meta_indexes_by_id(
+                        new_meta_id, new_meta
+                    )
+                    self.window.core.ctx.idx.clear_meta_indexed_by_id(new_meta_id)
+                self.window.core.attachments.context.duplicate(meta.id, new_meta_id)
+                self.move_to_group(new_meta_id, new_group_id, update=False)
+
+        # Do not create empty project indexes just because a project was copied.
+        # Reindex the duplicated contexts only when the source project had state.
+        source_project_idx = self.window.core.idx.project.get_idx_id(id)
+        if (self.window.core.idx.project.get(id) is not None
+                or self.window.core.idx.storage.exists(source_project_idx)):
+            self.window.controller.idx.indexer.duplicate_project_index(
+                id, new_group_id, silent=True
+            )
+        self.group_id = new_group_id
+        self.update_and_restore()
+        self.window.update_status(
+            trans('action.group.duplicated').replace('{id}', str(new_group_id))
+        )
+
+    def update_project_index(self, group_id: int):
+        self.window.controller.idx.indexer.index_project(
+            int(group_id), from_last=True, sync=False, silent=False
+        )
+
+    def truncate_project_index(self, group_id: int):
+        self.window.controller.idx.indexer.truncate_project(int(group_id), False)
+
     def rename_group(
             self,
             id: Union[int, list],
@@ -1424,6 +1476,10 @@ class Ctx:
         for id in ids:
             group = self.window.core.ctx.get_group_by_id(id)
             if group is not None:
+                try:
+                    self.window.core.idx.truncate_project(id)
+                except Exception as e:
+                    self.window.core.debug.log(e)
                 self.window.core.ctx.remove_group(group, all=False)
                 if self.group_id == id:
                     self.group_id = None
@@ -1455,6 +1511,10 @@ class Ctx:
         for id in ids:
             group = self.window.core.ctx.get_group_by_id(id)
             if group is not None:
+                try:
+                    self.window.core.idx.truncate_project(id)
+                except Exception as e:
+                    self.window.core.debug.log(e)
                 self.window.core.ctx.remove_group(group, all=True)
                 if self.group_id == id:
                     self.group_id = None

@@ -33,6 +33,14 @@ class Indexer(QObject):
         self.worker = None
         self.tmp_idx = None
 
+    def resolve_idx(self, idx: str):
+        """Resolve the runtime project alias before an async job is queued."""
+        requested_idx = idx
+        resolved_idx = self.window.core.idx.resolve_idx(requested_idx)
+        if self.window.core.idx.project.is_virtual(requested_idx) and resolved_idx is None:
+            raise RuntimeError("Current project index requested outside a project")
+        return resolved_idx
+
     def update_explorer(self):
         """Update file explorer view"""
         self.window.controller.files.update_explorer()
@@ -81,6 +89,7 @@ class Indexer(QObject):
         :param idx: index name
         :param force: force index
         """
+        idx = self.resolve_idx(idx)
         if not force:
             self.tmp_idx = idx  # store tmp index name (for confirmation)
             content = f"{trans('idx.confirm.db.content')}\n{trans('idx.token.warn')}"
@@ -95,7 +104,8 @@ class Indexer(QObject):
         worker.window = self.window
         self.window.update_status(trans('idx.status.indexing'))
 
-        # batch indexing
+        # batch indexing: use a cursor scoped to the selected index.
+        store = self.window.core.idx.get_current_store()
         if isinstance(meta_id, list):
             ts_batch = {}
             ids = []
@@ -104,7 +114,7 @@ class Indexer(QObject):
                 if meta is None:
                     continue
                 ids.append(mid)
-                ts_batch[mid] = meta.indexed
+                ts_batch[mid] = self.window.core.idx.ctx.get_updated_ts(store, idx, mid)
             worker.content = ids
             worker.idx = idx
             worker.type = "db_meta_batch"
@@ -112,10 +122,12 @@ class Indexer(QObject):
         else:
             # single indexing
             meta = self.window.core.ctx.get_meta_by_id(meta_id)
+            if meta is None:
+                return
             worker.content = meta_id
             worker.idx = idx
             worker.type = "db_meta"
-            worker.from_ts = meta.indexed
+            worker.from_ts = self.window.core.idx.ctx.get_updated_ts(store, idx, meta_id)
 
         worker.signals.finished.connect(self.handle_finished_db_meta)
         worker.signals.error.connect(self.handle_error)
@@ -136,9 +148,9 @@ class Indexer(QObject):
         :param force: force index
         :param silent: silent mode
         """
-        from_ts = 0
-        if self.window.core.config.has('llama.idx.db.last'):
-            from_ts = int(self.window.core.config.get('llama.idx.db.last'))
+        idx = self.resolve_idx(idx)
+        store = self.window.core.idx.get_current_store()
+        from_ts = self.window.core.idx.ctx.get_updated_ts(store, idx)
 
         if not silent and force:
             self.window.update_status(trans('idx.status.indexing'))
@@ -163,12 +175,15 @@ class Indexer(QObject):
         :param idx: index name
         :param sync: sync mode
         """
+        idx = self.resolve_idx(idx)
         worker = IndexWorker()
         worker.window = self.window
         worker.content = meta.id
         worker.idx = idx
         worker.type = "db_meta"
-        worker.from_ts = meta.indexed
+        worker.from_ts = self.window.core.idx.ctx.get_updated_ts(
+            self.window.core.idx.get_current_store(), idx, meta.id
+        )
         worker.silent = True
         worker.signals.finished.connect(self.handle_finished_db_meta)
         worker.signals.error.connect(self.handle_error)
@@ -178,6 +193,86 @@ class Indexer(QObject):
             self.worker.run()
         else:
             self.window.threadpool.start(self.worker)
+
+    def index_project(
+            self,
+            group_id: int,
+            from_last: bool = True,
+            sync: bool = False,
+            silent: bool = False
+    ):
+        """Index a project incrementally (or rebuild from scratch)."""
+        worker = IndexWorker()
+        worker.window = self.window
+        worker.content = int(group_id)
+        worker.idx = self.window.core.idx.project.get_idx_id(group_id)
+        worker.type = "db_project"
+        worker.replace = bool(from_last)
+        worker.silent = silent
+        worker.signals.finished.connect(self.handle_finished_db_meta)
+        worker.signals.error.connect(self.handle_error)
+        self.worker = worker
+        if not silent:
+            self.window.update_status(trans('idx.status.indexing'))
+            self.window.controller.idx.on_idx_start()
+        if sync:
+            worker.run()
+        else:
+            self.window.threadpool.start(worker)
+
+    def duplicate_project_index(
+            self, source_group_id: int, target_group_id: int, silent: bool = True
+    ):
+        """Rebuild the target project index from a duplicated source project."""
+        worker = IndexWorker()
+        worker.window = self.window
+        worker.content = (int(source_group_id), int(target_group_id))
+        worker.idx = self.window.core.idx.project.get_idx_id(target_group_id)
+        worker.type = "project_duplicate"
+        worker.silent = silent
+        worker.signals.finished.connect(self.handle_finished_db_meta)
+        worker.signals.error.connect(self.handle_error)
+        self.worker = worker
+        if not silent:
+            self.window.update_status(trans('idx.status.indexing'))
+            self.window.controller.idx.on_idx_start()
+        self.window.threadpool.start(worker)
+
+    def truncate_project(self, group_id: int, force: bool = False):
+        """Confirm and truncate one project index."""
+        if not force:
+            self.window.ui.dialogs.confirm(
+                type='idx.project.truncate',
+                id=int(group_id),
+                msg=trans('idx.project.truncate.confirm'),
+            )
+            return
+        try:
+            self.window.core.idx.truncate_project(int(group_id))
+            self.update_explorer()
+            self.window.controller.ctx.update_and_restore()
+            self.window.update_status(trans('idx.status.truncate.success'))
+        except Exception as e:
+            self.window.core.debug.log(e)
+            self.window.update_status(str(e))
+
+    def truncate_projects(self, force: bool = False):
+        """Confirm and truncate every tracked project index."""
+        if not force:
+            self.window.ui.dialogs.confirm(
+                type='idx.projects.truncate',
+                id=None,
+                msg=trans('idx.projects.truncate.confirm'),
+            )
+            return
+        try:
+            self.window.core.idx.truncate_projects()
+            self.update_explorer()
+            self.window.controller.ctx.update_and_restore()
+            self.window.update_status(trans('idx.status.truncate.success'))
+        except Exception as e:
+            self.window.core.debug.log(e)
+            self.window.update_status(str(e))
 
     def index_ctx_from_ts_confirm(self, ts: int):
         """
@@ -212,6 +307,7 @@ class Indexer(QObject):
         :param force: force index
         :param silent: silent mode
         """
+        idx = self.resolve_idx(idx)
         self.tmp_idx = idx  # store tmp index name (for confirmation)
         if not force:
             content = trans('idx.confirm.db.content') + "\n" + trans('idx.token.warn')
@@ -250,6 +346,7 @@ class Indexer(QObject):
         :param replace: replace index
         :param recursive: recursive indexing
         """
+        idx = self.resolve_idx(idx)
         self.window.update_status(trans('idx.status.indexing'))
 
         worker = IndexWorker()
@@ -281,6 +378,7 @@ class Indexer(QObject):
         :param replace: replace index
         :param recursive: recursive indexing
         """
+        idx = self.resolve_idx(idx)
         self.window.update_status(trans('idx.status.indexing'))
 
         worker = IndexWorker()
@@ -309,6 +407,7 @@ class Indexer(QObject):
         :param idx: index name
         :param force: force index
         """
+        idx = self.resolve_idx(idx)
         self.tmp_idx = idx  # store tmp index name (for confirmation)
         path = self.window.core.config.get_user_dir('data')
         if not force:
@@ -355,6 +454,7 @@ class Indexer(QObject):
         :param idx: index name
         :param force: force index
         """
+        idx = self.resolve_idx(idx)
         self.tmp_idx = idx  # store tmp index name (for confirmation)
         if not force:
             dir_srt = str(path)
@@ -421,6 +521,7 @@ class Indexer(QObject):
         :param idx: index name
         :param force: force index
         """
+        idx = self.resolve_idx(idx)
         self.tmp_idx = idx  # store tmp index name (for confirmation)
         if not force:
             dir_srt = str(path)
@@ -454,6 +555,7 @@ class Indexer(QObject):
         :param config: loader config
         :param replace: replace index
         """
+        idx = self.resolve_idx(idx)
         worker = IndexWorker()
         worker.window = self.window
         worker.content = None
@@ -484,6 +586,7 @@ class Indexer(QObject):
         :param meta_id: meta id or list of ids
         :param force: force index
         """
+        idx = self.resolve_idx(idx)
         if not force:
             self.tmp_idx = idx  # store tmp index name (for confirmation)
             content = "Remove context data from index?"
@@ -520,7 +623,7 @@ class Indexer(QObject):
 
         :param idx: on list idx
         """
-        self.clear(self.window.core.idx.get_by_idx(idx))
+        self.truncate(self.window.core.idx.get_by_idx(idx))
 
     def clear(
             self,
@@ -533,6 +636,7 @@ class Indexer(QObject):
         :param idx: index name
         :param force: force clear
         """
+        idx = self.resolve_idx(idx)
         path = os.path.join(self.window.core.config.get_user_dir('idx'), idx)
         if not force:
             content = trans('idx.confirm.clear.content').replace('{dir}', path)
@@ -578,6 +682,7 @@ class Indexer(QObject):
         :param idx: index name
         :param force: force clear
         """
+        idx = self.resolve_idx(idx)
         path = os.path.join(self.window.core.config.get_user_dir('idx'), idx)
         if not force:
             content = trans('idx.confirm.clear.content').replace('{dir}', path)
@@ -691,14 +796,15 @@ class Indexer(QObject):
             if not silent:
                 self.window.update_status(msg)
                 self.window.ui.dialogs.alert(msg)
-        else:
+        elif not silent:
             self.window.update_status(trans('idx.status.empty'))
 
-        if len(errors) > 0:
+        if len(errors) > 0 and not silent:
             self.window.ui.dialogs.alert("\n".join(errors))
 
         self.window.tools.get("indexer").refresh()
-        self.window.controller.idx.on_idx_end()  # on end
+        if not silent:
+            self.window.controller.idx.on_idx_end()  # on end
         self.window.controller.ctx.select_by_current()
 
     @Slot(str, object, object, bool)

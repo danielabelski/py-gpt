@@ -128,7 +128,6 @@ class Database:
             'id',
             'meta_id',
             'updated_ts',
-            'item_id',
             'doc_id',
             'created_ts',
             'store',
@@ -156,6 +155,13 @@ class Database:
             'store',
             'idx',
             'uuid',
+        ]
+        columns["idx_proj"] = [
+            'group_id',
+            'idx_id',
+            'last_meta',
+            'last_item',
+            'last_update',
         ]
         columns["notepad"] = [
             'id',
@@ -283,6 +289,16 @@ class Database:
                 'default_sort': 'id',
                 'default_order': 'DESC',
                 'primary_key': 'id',
+            },
+            'idx_proj': {
+                'columns': columns["idx_proj"],
+                'sort_by': columns["idx_proj"],
+                'search_fields': ['group_id', 'idx_id', 'last_meta', 'last_item'],
+                'timestamp_columns': ['last_update'],
+                'json_columns': [],
+                'default_sort': 'last_update',
+                'default_order': 'DESC',
+                'primary_key': 'group_id',
             },
             'notepad': {
                 'columns': columns["notepad"],

@@ -871,11 +871,14 @@ class FileExplorer(QWidget):
         :param pos: mouse  position
         """
         menu = QMenu(self)
-        idx_list = self.window.core.config.get('llama.idx.list')
+        idx_list = list(self.window.core.config.get('llama.idx.list') or [])
+        if self.window.core.idx.project.get_current_group_id() is not None:
+            idx_list.insert(0, {'id': self.window.core.idx.project.VIRTUAL_ID, 'name': trans('idx.current_project')})
         if len(idx_list) > 0:
             for idx in idx_list:
                 id = idx['id']
-                name = f"{idx['name']} ({idx['id']})"
+                name = idx['name'] if self.window.core.idx.project.is_virtual(id) \
+                    else f"{idx['name']} ({id})"
                 action = menu.addAction(f"IDX: {name}")
                 action.triggered.connect(
                     lambda checked=False,
@@ -1056,11 +1059,14 @@ class FileExplorer(QWidget):
             allowed_any = any(self.window.core.idx.indexing.is_allowed(p) for p in paths)
             if allowed_any:
                 idx_menu = QMenu(trans('action.idx'), self)
-                idx_list = self.window.core.config.get('llama.idx.list')
+                idx_list = list(self.window.core.config.get('llama.idx.list') or [])
+                if self.window.core.idx.project.get_current_group_id() is not None:
+                    idx_list.insert(0, {'id': self.window.core.idx.project.VIRTUAL_ID, 'name': trans('idx.current_project')})
                 if len(idx_list) > 0:
                     for idx in idx_list:
                         id = idx['id']
-                        name = f"{idx['name']} ({idx['id']})"
+                        name = idx['name'] if self.window.core.idx.project.is_virtual(id) \
+                            else f"{idx['name']} ({id})"
                         action = QAction(self._icons['db'], f"IDX: {name}", self)
                         action.triggered.connect(lambda checked=False, id=id, target=target_multi: self.action_idx(target, id))
                         idx_menu.addAction(action)
@@ -1069,13 +1075,17 @@ class FileExplorer(QWidget):
                 for p in paths:
                     status = self.model.get_index_status(p)
                     if status.get('indexed'):
-                        for ix in status.get('indexed_in', []):
+                        for ix in status.get('global_indexes', []):
+                            remove_idx_set.add(ix)
+                        for ix in status.get('project_indexes', []):
                             remove_idx_set.add(ix)
 
                 if len(remove_idx_set) > 0:
                     idx_menu.addSeparator()
+                    current_project_idx = self.window.core.idx.get_current_project_idx(virtual=False)
                     for ix in sorted(remove_idx_set):
-                        action = QAction(self._icons['delete'], trans("action.idx.remove") + ": " + ix, self)
+                        label = trans('idx.current_project') if ix == current_project_idx else ix
+                        action = QAction(self._icons['delete'], trans("action.idx.remove") + ": " + label, self)
                         action.triggered.connect(
                             lambda checked=False, ix=ix, target=target_multi: self.action_idx_remove(target, ix)
                         )
@@ -1714,36 +1724,12 @@ class IndexedFileSystemModel(QFileSystemModel):
         return super().data(index, role)
 
     def get_index_status(self, file_path) -> dict:
-        """
-        Get index status
-
-        :param file_path: file path
-        :return: file index status
-        """
+        """Get one file's index status lazily from SQLite and cache it."""
         file_id = self.window.core.idx.files.get_id(file_path)
         cached = self._status_cache.get(file_id)
         if cached is not None:
             return cached
-        indexed_in = []
-        indexed_timestamps = {}
-        last_index_at = 0
-        for idx in self.index_dict:
-            items = self.index_dict[idx]
-            if file_id in items:
-                indexed_in.append(idx)
-                ts = items[file_id]['indexed_ts']
-                indexed_timestamps[idx] = ts
-                if ts > last_index_at:
-                    last_index_at = ts
-        if indexed_in:
-            indexed_in.sort(key=lambda x: indexed_timestamps[x], reverse=True)
-            result = {
-                'indexed': True,
-                'indexed_in': indexed_in,
-                'last_index_at': last_index_at,
-            }
-        else:
-            result = {'indexed': False}
+        result = self.window.core.idx.get_file_index_status(file_path)
         self._status_cache[file_id] = result
         return result
 
@@ -1775,7 +1761,7 @@ class IndexedFileSystemModel(QFileSystemModel):
 
         :param idx_data: new index data dict
         """
-        self.index_dict = idx_data
+        self.index_dict = {}
         self._status_cache.clear()
         row_count = self.rowCount()
         if row_count > 0:

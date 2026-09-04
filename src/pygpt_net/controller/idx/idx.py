@@ -189,15 +189,15 @@ class Idx:
         self.current_idx = idx
 
     def select_current(self):
-        """Select current idx on list"""
+        """Select current idx on list."""
         idx = self.window.core.config.get('llama.idx.current')
         if idx is None:
+            self.current_idx = None
             return
-        items = self.window.core.config.get('llama.idx.list')
-        if items is not None:
-            if self.window.ui.nodes['indexes.select'].has_key(idx):
-                self.window.ui.nodes['indexes.select'].set_value(idx)
-                return
+        if self.window.ui.nodes['indexes.select'].has_key(idx):
+            self.window.ui.nodes['indexes.select'].set_value(idx)
+            self.current_idx = idx
+            return
         self.current_idx = None  # clear if no index on list
 
     def select_current_mode(self):
@@ -227,10 +227,14 @@ class Idx:
         self.select_current_mode()  # select current mode on list
 
     def update_list(self):
-        """Update list"""
-        items = self.window.core.config.get('llama.idx.list')
-        if items is not None:
-            self.window.ui.toolbox.indexes.update(items)
+        """Update list and inject the runtime-only current-project index."""
+        items = list(self.window.core.config.get('llama.idx.list') or [])
+        if self.window.core.idx.project.get_current_group_id() is not None:
+            items.insert(0, {
+                'id': self.window.core.idx.project.VIRTUAL_ID,
+                'name': trans('idx.current_project'),
+            })
+        self.window.ui.toolbox.indexes.update(items)
 
     def auto_idx_allowed(self, mode: str) -> bool:
         """
@@ -240,11 +244,13 @@ class Idx:
         :return: True if allowed
         """
         modes = self.window.core.config.get('llama.idx.auto.modes')
-        if modes is not None:
-            modes_list = modes.replace(" ", "").split(',')
-            if mode in modes_list:
-                return True
-        return False
+        if isinstance(modes, str):
+            modes_list = [item.strip() for item in modes.split(',') if item.strip()]
+        elif isinstance(modes, (list, tuple, set)):
+            modes_list = [str(item).strip() for item in modes if str(item).strip()]
+        else:
+            modes_list = []
+        return mode in modes_list
 
     def on_ctx_end(
             self,
@@ -252,32 +258,54 @@ class Idx:
             mode: Optional[str] = None,
             sync: bool = False
     ):
-        """
-        After context item updated (request + response received)
-
-        :param ctx: Context item instance
-        :param mode: Mode
-        :param sync: Synchronous call
-        """
-        # ignore if disallowed mode
+        """Apply real-time auto-index policy after a conversation turn."""
+        auto_policy = self.window.core.config.get('llama.idx.auto', 'off')
+        # Compatibility guard for a config that reaches runtime before the
+        # 2.8.8 config normalizer has persisted the legacy bool value.
+        if isinstance(auto_policy, bool):
+            auto_policy = 'all' if auto_policy else 'off'
+        if auto_policy not in ('off', 'all', 'projects'):
+            auto_policy = 'off'
+        if auto_policy == 'off':
+            return
         if mode is not None and not self.auto_idx_allowed(mode):
             return
-
-        # ignore if manually stopped
         if self.window.controller.kernel.stopped():
             return
 
-        idx = "base"  # default index
-        if self.window.core.config.has('llama.idx.auto') and self.window.core.config.get('llama.idx.auto'):
-            if self.window.core.config.has('llama.idx.auto.index'):
-                idx = self.window.core.config.get('llama.idx.auto.index')
+        # Prefer the context that actually emitted CTX_END. The active UI
+        # context may already have changed while a streamed response was finishing.
+        meta = None
+        meta_id = getattr(ctx, 'meta_id', None) if ctx is not None else None
+        if meta_id is not None:
+            meta = self.window.core.ctx.get_meta_by_id(meta_id)
+        if meta is None:
+            meta = self.window.core.ctx.get_current_meta()
+        if meta is None:
+            return
+        group_id = getattr(meta, 'group_id', None)
+        in_project = group_id is not None and int(group_id) > 0
+        per_project = bool(self.window.core.config.get('llama.idx.auto.project', True))
 
-            # index items from previously indexed time only
-            current_ctx = self.window.core.ctx.get_current()
-            if current_ctx is not None:
-                meta = self.window.core.ctx.get_meta_by_id(current_ctx)
-                if meta is not None:
-                    self.indexer.index_ctx_realtime(meta, idx, sync=sync)
+        # The policy controls where conversation auto-indexing is active.
+        if auto_policy == 'projects' and not in_project:
+            return
+
+        # When isolation is enabled, a conversation inside a project is routed
+        # exclusively to that project's virtual index instead of global targets.
+        if in_project and per_project:
+            self.indexer.index_project(int(group_id), from_last=True, sync=sync, silent=True)
+            return
+
+        targets = self.window.core.config.get('llama.idx.auto.index', 'base')
+        if isinstance(targets, str):
+            indexes = [item.strip() for item in targets.split(',') if item.strip()]
+        elif isinstance(targets, (list, tuple, set)):
+            indexes = [str(item).strip() for item in targets if str(item).strip()]
+        else:
+            indexes = []
+        for idx in indexes:
+            self.indexer.index_ctx_realtime(meta, idx, sync=sync)
 
     def after_index(self, idx: Optional[str] = None):
         """
@@ -298,8 +326,14 @@ class Idx:
         self.window.ui.nodes['idx.db.last_updated'].setText(txt)
 
     def refresh(self):
-        """Update list"""
+        """Refresh runtime index choices after context/project changes."""
         self.select_default()
+        self.locked = True
+        try:
+            self.update_list()
+        finally:
+            self.locked = False
+        self.select_current()
 
     def change_locked(self) -> bool:
         """

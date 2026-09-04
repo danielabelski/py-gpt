@@ -426,7 +426,7 @@ Remote tools are available only when supported by the selected provider/API mode
 
 **Indexes / LlamaIndex**
 
-* ``Indexes``: List of configured indexes.
+* ``Indexes``: List of configured indexes. Removing an entry from this list does not delete data already stored in the vector store; use ``Clear and truncate`` for permanent deletion.
 
 *Vector Store*
 
@@ -436,9 +436,9 @@ Remote tools are available only when supported by the selected provider/API mode
 
 *Chat*
 
-* ``Chat mode``: Check LlamaIndex documentation for help. Default: context.
+* ``Chat mode``: Check LlamaIndex documentation for help. Default: default.
 
-* ``Use ReAct agent for tool calls in Chat with Files mode.``: If enabled, the ReAct agent will be used if the option "+Tools" is enabled. Default: False.
+* ``Use ReAct agent for tool calls in Chat with Files mode.``: If enabled, the ReAct agent will be used if the option "+Tools" is enabled. Default: True.
 
 * ``Auto-retrieve additional context``: If enabled, additional context will be retrieved with every query and appended to system prompt. Default: True.
 
@@ -454,9 +454,9 @@ Remote tools are available only when supported by the selected provider/API mode
 
 * ``Default embedding providers for attachments``: Define embedding model by provider to use in attachments.
 
-*Indexing*
+*File indexing*
 
-* ``Recursive directory indexing``: Enables recursive directory indexing. Default: True.
+* ``Recursive directory indexing``: Enables recursive directory indexing. Default: False.
 
 * ``Replace old document versions in the index during re-indexing``: If enabled, previous versions of documents will be deleted from the index when the newest versions are indexed. Default: True.
 
@@ -466,9 +466,19 @@ Remote tools are available only when supported by the selected provider/API mode
 
 * ``Stop indexing when an error occurs``: If enabled, indexing will be stopped when any error occurs. Default: True.
 
-* ``Custom metadata to append/replace to indexed documents (files)``: Define custom metadata key => value fields for specified file extensions, separate extensions by comma. Allowed placeholders: {path}, {relative_path} {filename}, {dirname}, {relative_dir} {ext}, {size}, {mtime}, {date}, {date_time}, {time}, {timestamp}.
+* ``Custom metadata to append/replace to indexed documents (files)``: Define custom metadata key => value fields for specified file extensions, separate extensions by comma. Allowed placeholders: {path}, {relative_path}, {filename}, {dirname}, {relative_dir}, {ext}, {size}, {mtime}, {date}, {date_time}, {time}, {timestamp}.
 
 * ``Custom metadata to append/replace to indexed documents (web/external content)``: Define custom metadata key => value fields for specified external data loaders. Allowed placeholders: {date}, {date_time}, {time}, {timestamp} + {data loader args}.
+
+*Context indexing*
+
+* ``Conversation auto-indexing``: Controls automatic indexing of stored conversation context. Available values are ``Off``, ``Auto-index all conversations``, and ``Auto-index only in projects``. Default: Off.
+
+* ``Use isolated index per project``: When enabled, conversations inside projects are indexed into a separate isolated project index. When disabled, project conversations use the selected global auto-indexing indexes. Default: True.
+
+* ``Indexes for global auto-indexing``: Multi-select list of one or more configured indexes used for global conversation auto-indexing. This option does not apply to isolated project indexes. Default: base.
+
+* ``Enable auto-indexing in modes``: Selects the work modes in which automatic conversation-context indexing is allowed.
 
 *Data loaders*
 
@@ -476,13 +486,11 @@ Remote tools are available only when supported by the selected provider/API mode
 
 * ``Use local models in Video/Audio and Image (vision) loaders``: Enable usage of local models in Video/Audio and Image (vision) loaders. If disabled, the Image (vision) loader uses the image model configured in the ``Chat with Files (LlamaIndex, inline)`` plugin, while Video/Audio transcription uses the speech-recognition provider configured in the ``Audio Input`` plugin. Local models work only in the Python version (not compiled/Snap). Default: False.
 
-*Update*
+*Clear and truncate*
 
-* ``Auto-index DB in real-time (in the background of conversation)``: Enables automatic conversation-context indexing in the background. Default: False.
+Use this tab to permanently remove all data from a selected stored index or to truncate all tracked project indexes. Removing an entry from the normal ``Indexes`` list does not delete vector-store data. Destructive truncate operations require confirmation.
 
-* ``ID of the index for auto-indexing``: Selects the index used for automatic context indexing. Default: base.
-
-* ``Enable auto-index in modes``: Available modes: chat, llama_index, audio, research, completion, img, vision, agent_llama, agent, expert.
+See :doc:`indexing` for the complete description of global context indexing, isolated project indexes, ``Current project``, project lifecycle, and index cleanup.
 
 **Agents and experts**
 

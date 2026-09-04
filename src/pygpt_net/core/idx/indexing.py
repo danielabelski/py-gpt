@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.08.21 07:00:00                  #
+# Updated Date: 2026.09.04 20:10:00                  #
 # ================================================== #
 
 import datetime
@@ -730,6 +730,104 @@ class Indexing:
                 )
                 documents.append(doc)
         return documents
+
+    def get_project_db_data(
+            self,
+            group_id: int,
+            idx: str,
+            last_item: int = 0
+    ) -> List[Document]:
+        """Get project conversation items after the project cursor.
+
+        Contexts indexed manually into the same project index are skipped when
+        their tracked idx_ctx timestamp is newer than the context item. This
+        prevents a later project-wide incremental update from inserting the
+        manually indexed conversation a second time.
+        """
+        db = self.window.core.db.get_db()
+        documents = []
+        store = self.window.core.idx.get_current_store()
+        stmt = text("""
+            SELECT
+                'Human: ' || ctx_item.input || '\nAssistant: ' || ctx_item.output AS text,
+                ctx_item.input_ts AS input_ts,
+                ctx_item.meta_id AS meta_id,
+                ctx_item.id AS item_id
+            FROM ctx_item
+            INNER JOIN ctx_meta ON ctx_item.meta_id = ctx_meta.id
+            WHERE ctx_meta.group_id = :group_id
+              AND ctx_item.id > :last_item
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM idx_ctx
+                  WHERE idx_ctx.store = :store
+                    AND idx_ctx.idx = :idx
+                    AND idx_ctx.meta_id = ctx_item.meta_id
+                    AND idx_ctx.updated_ts >= MAX(
+                        COALESCE(ctx_item.input_ts, 0),
+                        COALESCE(ctx_item.output_ts, 0)
+                    )
+              )
+            ORDER BY ctx_item.id ASC
+        """).bindparams(
+            group_id=int(group_id),
+            idx=str(idx),
+            store=str(store),
+            last_item=int(last_item or 0),
+        )
+        with db.connect() as connection:
+            for row in connection.execute(stmt):
+                data = row._asdict()
+                doc = Document(
+                    text=data["text"],
+                    metadata={
+                        "ctx_date": str(datetime.datetime.fromtimestamp(int(data["input_ts"]))),
+                        "ctx_id": data["meta_id"],
+                        "item_id": data["item_id"],
+                        "project_id": int(group_id),
+                        "indexed_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    },
+                )
+                documents.append(doc)
+        return documents
+
+    def index_db_project(
+            self,
+            idx: str,
+            index: BaseIndex,
+            group_id: int,
+            last_item: int = 0
+    ) -> Tuple[int, List[str], int, int]:
+        """Index one project's DB context incrementally by ctx_item ID."""
+        errors = []
+        n = 0
+        max_meta = 0
+        max_item = int(last_item or 0)
+        try:
+            documents = self.get_project_db_data(group_id, idx, last_item)
+            self.window.core.idx.log(
+                f"Indexing project {group_id} to {idx} from item: {last_item}"
+            )
+            for d in documents:
+                if self.is_stopped():
+                    break
+                self.index_document(index, d)
+                meta_id = int(d.metadata.get("ctx_id", 0) or 0)
+                item_id = int(d.metadata.get("item_id", 0) or 0)
+                self.window.core.ctx.idx.set_meta_as_indexed(
+                    meta_id, idx, d.id_, update_timestamp=False
+                )
+                max_meta = max(max_meta, meta_id)
+                max_item = max(max_item, item_id)
+                n += 1
+                self.window.core.idx.log(
+                    f"Inserted project DB document: {n} / {len(documents)}, "
+                    f"item: {item_id}, id: {d.id_}"
+                )
+        except Exception as e:
+            errors.append(str(e))
+            self.window.core.debug.log(e)
+        return n, errors, max_meta, max_item
 
     def index_db_by_meta_id(
             self,

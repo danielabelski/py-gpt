@@ -323,11 +323,11 @@ class Worker(BaseWorker):
 
                 # + auto-index file to main index using Llama-index
                 if self.plugin.get_option_value("auto_index"):
-                    idx_name = self.plugin.get_option_value("idx")
-                    self.plugin.window.core.idx.index_files(
-                        idx_name,
-                        path,
-                    )
+                    for idx_name in self.plugin.get_index_names():
+                        self.plugin.window.core.idx.index_files(
+                            idx_name,
+                            path,
+                        )
             else:
                 result = "File not found"
                 self.log("File not found: {}".format(path))
@@ -796,15 +796,27 @@ class Worker(BaseWorker):
             self.msg = "Indexing path: {}".format(path)
             self.log(self.msg)
             if os.path.exists(path):
-                idx_name = self.plugin.get_option_value("idx")
-                # index path using Llama-index
-                files, errors = self.plugin.window.core.idx.index_files(
-                    idx_name,
-                    path,
-                )
+                index_names = self.plugin.get_index_names()
+                indexed = {}
+                errors = []
+                num_indexed = 0
+                for idx_name in index_names:
+                    # index path using Llama-index
+                    files, idx_errors = self.plugin.window.core.idx.index_files(
+                        idx_name,
+                        path,
+                    )
+                    num_indexed += len(files)
+                    indexed[idx_name] = {
+                        'num_indexed': len(files),
+                        'errors': idx_errors,
+                    }
+                    errors.extend([f"{idx_name}: {error}" for error in idx_errors])
                 result = {
-                    'num_indexed': len(files),
-                    'index_name': idx_name,
+                    'num_indexed': num_indexed,
+                    'index_name': ','.join(index_names),
+                    'index_names': index_names,
+                    'indexes': indexed,
                     'errors': errors,
                     'path': path,
                 }
@@ -923,16 +935,28 @@ class Worker(BaseWorker):
                 # + auto-index file using Llama-index
                 if self.plugin.get_option_value("auto_index") \
                         or self.plugin.get_option_value("only_index"):
-                    idx_name = self.plugin.get_option_value("idx")
-                    files, errors = self.plugin.window.core.idx.index_files(
-                        idx_name,
-                        path,
-                    )
+                    index_names = self.plugin.get_index_names()
+                    indexed = {}
+                    errors = []
+                    num_indexed = 0
+                    for idx_name in index_names:
+                        files, idx_errors = self.plugin.window.core.idx.index_files(
+                            idx_name,
+                            path,
+                        )
+                        num_indexed += len(files)
+                        indexed[idx_name] = {
+                            'num_indexed': len(files),
+                            'errors': idx_errors,
+                        }
+                        errors.extend([f"{idx_name}: {error}" for error in idx_errors])
                     # if only index, return response and continue
                     if self.plugin.get_option_value("only_index"):
                         data.append({
-                            'num_indexed': len(files),
-                            'index_name': idx_name,
+                            'num_indexed': num_indexed,
+                            'index_name': ','.join(index_names),
+                            'index_names': index_names,
+                            'indexes': indexed,
                             'errors': errors,
                             'path': path,
                         })

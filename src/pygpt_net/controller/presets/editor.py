@@ -868,6 +868,12 @@ class Editor:
             self.window.controller.config.placeholder.apply_by_id('agent_provider_openai')
         )
 
+    def update_indexes_list(self):
+        """Refresh index choices in the preset editor for the current context/project."""
+        keys = self.window.controller.config.placeholder.apply_by_id('idx')
+        self.options['idx']['keys'] = keys
+        self.window.ui.config[self.id]['idx'].set_keys(keys, lock=True)
+
     def hook_update(
             self,
             key: str,
@@ -1003,6 +1009,9 @@ class Editor:
         for key in self.options:
             options[key] = self.options[key]
             options[key]['value'] = data_dict[key]
+
+        # refresh dynamic index choices (includes Current project when applicable)
+        self.update_indexes_list()
 
         # load options
         self.window.controller.config.load_options(

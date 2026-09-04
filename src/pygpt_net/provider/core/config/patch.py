@@ -480,8 +480,58 @@ class Patch:
             # < 2.8.8
             if old < parse_version("2.8.8"):
                 print("Migrating config from < 2.8.8...")
+                # add llama index auto-project config key
+                if "llama.idx.auto.project" not in data:
+                    data["llama.idx.auto.project"] = cfg_get_base("llama.idx.auto.project")
+                    updated = True
+
+                # migrate old llama index auto config keys to new multi-index format
+                auto_policy = data.get("llama.idx.auto")
+                if "llama.idx.auto" not in data:
+                    data["llama.idx.auto"] = cfg_get_base("llama.idx.auto")
+                    auto_policy = data["llama.idx.auto"]
+                    updated = True
+                if isinstance(auto_policy, bool):
+                    if auto_policy:
+                        if "llama.idx.auto.only_projects" in data \
+                                and bool(data.get("llama.idx.auto.only_projects")):
+                            data["llama.idx.auto"] = "projects"
+                        else:
+                            # Legacy pre-project bool=True meant all conversations.
+                            data["llama.idx.auto"] = "all"
+                    else:
+                        data["llama.idx.auto"] = "off"
+                    updated = True
+                elif auto_policy is not None and auto_policy not in ("off", "all", "projects"):
+                    data["llama.idx.auto"] = "off"
+                    updated = True
+
+                if "llama.idx.auto.only_projects" in data:
+                    del data["llama.idx.auto.only_projects"]
+                    updated = True
+
+
+                # The global auto-index target is now a multi-index option.
+                # bool_list values are persisted as comma-separated strings.
+                auto_indexes = data.get("llama.idx.auto.index")
+                if isinstance(auto_indexes, list):
+                    data["llama.idx.auto.index"] = ",".join(
+                        str(item).strip() for item in auto_indexes if str(item).strip()
+                    )
+                    updated = True
+                elif auto_indexes is None:
+                    data["llama.idx.auto.index"] = cfg_get_base("llama.idx.auto.index")
+                    updated = True
+
+                # Migrate plugin-specific config keys to new defaults if missing.
                 plugins = data.get("plugins")
                 if isinstance(plugins, dict):
+                    for plugin_id in ("idx_llama_index", "cmd_files"):
+                        plugin_cfg = plugins.get(plugin_id)
+                        if isinstance(plugin_cfg, dict) and "use_project_index" not in plugin_cfg:
+                            plugin_cfg["use_project_index"] = True
+                            updated = True
+
                     image_plugin = plugins.get("openai_dalle")
                     if isinstance(image_plugin, dict):
                         for key in ("prompt", "cmd.image"):

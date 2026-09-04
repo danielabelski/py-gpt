@@ -120,3 +120,14 @@ def test_set_param_execption(mock_window):
     db.set_param("test", "test")
     db.engine.begin.assert_called_once()
 
+
+
+def test_index_debug_tables_match_current_schema(mock_window):
+    """DB viewer schema must not reference removed idx_ctx.item_id and must expose idx_proj."""
+    db = Database(mock_window)
+    tables = db.get_tables()
+
+    assert "item_id" not in tables["idx_ctx"]["columns"]
+    assert tables["idx_proj"]["columns"] == [
+        "group_id", "idx_id", "last_meta", "last_item", "last_update"
+    ]

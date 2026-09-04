@@ -43,12 +43,27 @@ class Config(BaseConfig):
             tab="indexing",
         )
         plugin.add_option(
+            "use_project_index",
+            type="bool",
+            value=True,
+            label="Use project index if in use",
+            description="When the current conversation is inside a project, index files into that project's isolated index instead of the configured global index.",
+            tab="indexing",
+        )
+        plugin.add_option(
             "idx",
-            type="text",
+            type="bool_list",
+            use="idx",
+            use_params={
+                "none": False,
+                "project": False,
+            },
             value="base",
-            label="Index to use when indexing files",
-            description="ID of index to use for files indexing",
-            tooltip="Index name",
+            label="Indexes to use when indexing files",
+            description="Select one or more global indexes to use for file indexing. "
+                        "If project indexing is enabled and the current conversation is in a project, "
+                        "the current project's isolated index is used instead.",
+            tooltip="Index names",
             tab="indexing",
         )
         plugin.add_option(
