@@ -1062,9 +1062,31 @@ class FileExplorer(QWidget):
                 idx_list = list(self.window.core.config.get('llama.idx.list') or [])
                 if self.window.core.idx.project.get_current_group_id() is not None:
                     idx_list.insert(0, {'id': self.window.core.idx.project.VIRTUAL_ID, 'name': trans('idx.current_project')})
+                # Resolve current per-path state once.  The lazy status cache is
+                # also used by the Indexed column, so the menu and column stay
+                # consistent without hydrating the whole idx_file table.
+                path_status = {p: self.model.get_index_status(p) for p in paths}
+
                 if len(idx_list) > 0:
                     for idx in idx_list:
                         id = idx['id']
+                        physical_id = self.window.core.idx.resolve_idx(id)
+
+                        # Hide a target from the Index section when every selected
+                        # path is already present in it.  The same target is then
+                        # exposed only in the Remove from index section below.
+                        if physical_id is not None:
+                            already_indexed = True
+                            for p in paths:
+                                status = path_status[p]
+                                ids = set(status.get('global_indexes', []))
+                                ids.update(status.get('project_indexes', []))
+                                if physical_id not in ids:
+                                    already_indexed = False
+                                    break
+                            if already_indexed:
+                                continue
+
                         name = idx['name'] if self.window.core.idx.project.is_virtual(id) \
                             else f"{idx['name']} ({id})"
                         action = QAction(self._icons['db'], f"IDX: {name}", self)
@@ -1073,7 +1095,7 @@ class FileExplorer(QWidget):
 
                 remove_idx_set = set()
                 for p in paths:
-                    status = self.model.get_index_status(p)
+                    status = path_status[p]
                     if status.get('indexed'):
                         for ix in status.get('global_indexes', []):
                             remove_idx_set.add(ix)
