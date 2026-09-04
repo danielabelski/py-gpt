@@ -1,7 +1,7 @@
 {
     "__meta__": {
-        "version": "2.8.7",
-        "app.version": "2.8.7",
+        "version": "2.8.8",
+        "app.version": "2.8.8",
         "updated_at": "2026-09-04T18:30:00"
     },
     "items": {
@@ -3413,48 +3413,6 @@
             "imported": false,
             "provider": "openai",
             "tool_calls": true
-        },
-        "grok-2-image-1212": {
-            "id": "grok-2-image-1212",
-            "name": "grok-2-image-1212",
-            "mode": [
-                "img"
-            ],
-            "llama_index": {
-                "args": [
-                    {
-                        "name": "model",
-                        "value": "grok-2-image-1212",
-                        "type": "str"
-                    }
-                ],
-                "env": [
-                    {
-                        "name": "OPENAI_API_KEY",
-                        "value": "{api_key_xai}",
-                        "type": "str"
-                    },
-                    {
-                        "name": "OPENAI_API_BASE",
-                        "value": "{api_endpoint_xai}",
-                        "type": "str"
-                    }
-                ]
-            },
-            "ctx": 0,
-            "tokens": 0,
-            "default": false,
-            "input": [
-                "text",
-                "image"
-            ],
-            "output": [
-                "image"
-            ],
-            "extra": {},
-            "imported": false,
-            "provider": "x_ai",
-            "tool_calls": false
         },
         "grok-2-vision": {
             "id": "grok-2-vision",

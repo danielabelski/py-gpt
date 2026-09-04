@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.03 20:31:00
+# Updated Date: 2026.09.04 13:26:00
 # ================================================== #
 
 import copy
@@ -476,6 +476,18 @@ class Patch:
                 if "painter.draw.mode" not in data:
                     data["painter.draw.mode"] = cfg_get_base("painter.draw.mode")
                     updated = True
+
+            # < 2.8.8
+            if old < parse_version("2.8.8"):
+                print("Migrating config from < 2.8.8...")
+                plugins = data.get("plugins")
+                if isinstance(plugins, dict):
+                    image_plugin = plugins.get("openai_dalle")
+                    if isinstance(image_plugin, dict):
+                        for key in ("prompt", "cmd.image"):
+                            if key in image_plugin:
+                                del image_plugin[key]
+                                updated = True
 
         # update file
         migrated = False

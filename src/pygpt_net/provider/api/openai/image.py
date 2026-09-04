@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.16 18:40:00
+# Updated Date: 2026.09.04 13:00:00
 # ================================================== #
 
 import base64
@@ -59,6 +59,7 @@ class Image:
         inline = extra.get("inline", False)
         sub_mode = self.MODE_GENERATE
         image_id = extra.get("image_id")  # previous image reference for remix
+        resolution = extra.get("resolution")  # per-call override
         extra_prompt = extra.get("extra_prompt", "")
 
         # if attachments then switch mode to EDIT
@@ -94,7 +95,9 @@ class Image:
         # config
         if self.window.core.config.has('img_quality'):
             worker.quality = self.window.core.config.get('img_quality')
-        if self.window.core.config.has('img_resolution'):
+        if resolution:
+            worker.resolution = str(resolution).strip()
+        elif self.window.core.config.has('img_resolution'):
             worker.resolution = self.window.core.config.get('img_resolution')
 
         self.worker = worker

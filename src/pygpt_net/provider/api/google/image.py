@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.12 16:30:00                  #
+# Updated Date: 2026.09.04 14:55:00                  #
 # ================================================== #
 
 import mimetypes
@@ -14,7 +14,7 @@ from typing import Optional, Dict, Any, List
 from google import genai
 from google.genai import types as gtypes
 from PySide6.QtCore import QObject, Signal, QRunnable, Slot
-import base64, datetime, os, requests, tempfile
+import base64, datetime, os, requests, tempfile, time
 
 from pygpt_net.core.events import KernelEvent
 from pygpt_net.core.types import MODE_IMAGE
@@ -88,9 +88,17 @@ class Image:
         worker.image_id = extra.get("image_id")
 
         if attachments and len(attachments) > 0:
-            mid = str(model.id).lower()
-            if "imagen" in mid:
-                worker.mode = self.MODE_EDIT
+            # Any local image attachment means image-to-image/edit mode for both
+            # Gemini native image models and legacy Imagen models.
+            for att in attachments.values():
+                try:
+                    path = getattr(att, "path", None)
+                    mime, _ = mimetypes.guess_type(path or "")
+                    if path and os.path.exists(path) and (mime or "").startswith("image/"):
+                        worker.mode = self.MODE_EDIT
+                        break
+                except Exception:
+                    continue
 
         if self.window.core.config.has('img_resolution'):
             worker.resolution = self.window.core.config.get('img_resolution') or "1024x1024"
@@ -292,11 +300,9 @@ class ImageWorker(QRunnable):
                             "Invalid image_id for remix. Provide a valid local path, Files API name, "
                             "http(s) URL, or gs:// URI."
                         )
-                    resp = self._gemini_generate_content(
+                    resp = self._gemini_edit_identifier(
                         prompt=self.input_prompt or "",
-                        model_id=self.model,
-                        resolution=self.resolution,
-                        extra_parts=[ref_part],
+                        identifier=self.image_id,
                     )
                     self._record_usage_google_safe(resp)
                     paths.extend(self._save_gemini_response(resp, self.num))
@@ -608,99 +614,152 @@ class ImageWorker(QRunnable):
             prompt: str,
             model_id: str,
             resolution: str,
-            extra_parts: Optional[List[gtypes.Part]] = None
+            extra_parts: Optional[List[gtypes.Part]] = None,
+            extra_image_identifiers: Optional[List[str]] = None
     ):
-        """Call Gemini native image generation/editing with SDK-version fallbacks."""
+        """Call Gemini image generation/editing with generate_content fallbacks."""
         cfg = self._build_gemini_image_config(model_id, resolution)
-        contents: List[Any] = [prompt or ""]
-        if extra_parts:
-            contents.extend(extra_parts)
-
         supports_response_format = self._gtype_has_field(gtypes.GenerateContentConfig, "response_format")
 
-        def _do_call(icfg: Optional[gtypes.ImageConfig], use_response_format: bool = False):
-            kwargs: Dict[str, Any] = {"response_modalities": ["IMAGE"]}
-            if use_response_format and supports_response_format:
-                kwargs["response_format"] = self._gemini_response_format(model_id, resolution)
-            elif icfg is not None:
-                kwargs["image_config"] = icfg
+        def _build_contents(structured: bool = False) -> List[Any]:
+            parts = list(extra_parts or [])
+            if structured:
+                content_parts: List[Any] = []
+                if prompt:
+                    try:
+                        content_parts.append(gtypes.Part.from_text(text=prompt))
+                    except Exception:
+                        content_parts.append(prompt)
+                content_parts.extend(parts)
+                return [gtypes.Content(role="user", parts=content_parts)]
+
+            contents: List[Any] = [prompt or ""]
+            contents.extend(parts)
+            return contents
+
+        def _do_call(
+                contents: List[Any],
+                icfg: Optional[gtypes.ImageConfig],
+                modalities: Optional[List[str]] = None,
+                use_response_format: bool = False,
+                send_config: bool = True,
+        ):
+            kwargs: Dict[str, Any] = {}
+            if send_config:
+                cfg_kwargs: Dict[str, Any] = {}
+                if modalities:
+                    cfg_kwargs["response_modalities"] = modalities
+                if use_response_format and supports_response_format:
+                    cfg_kwargs["response_format"] = self._gemini_response_format(model_id, resolution)
+                elif icfg is not None:
+                    cfg_kwargs["image_config"] = icfg
+                if cfg_kwargs:
+                    kwargs["config"] = gtypes.GenerateContentConfig(**cfg_kwargs)
             return self.client.models.generate_content(
                 model=model_id or self.DEFAULT_GEMINI_IMAGE_MODEL,
                 contents=contents,
-                config=gtypes.GenerateContentConfig(**kwargs),
+                **kwargs,
             )
 
         response = None
         last_error: Optional[Exception] = None
+        primary_modalities = ["TEXT", "IMAGE"] if extra_parts else ["IMAGE"]
+        secondary_modalities = ["IMAGE"] if primary_modalities == ["TEXT", "IMAGE"] else ["TEXT", "IMAGE"]
 
-        # Current Python SDK/docs use response_format. Older google-genai versions
-        # expose image_config instead, so preserve both paths without requiring a
-        # forced dependency upgrade.
-        strategies = []
-        if supports_response_format:
-            strategies.append((cfg, True))
-        strategies.append((cfg, False))
+        structured_first = bool(extra_parts)
+        content_variants = [_build_contents(structured=structured_first)]
+        alt_contents = _build_contents(structured=not structured_first)
+        if repr(alt_contents) != repr(content_variants[0]):
+            content_variants.append(alt_contents)
 
         cfg_no_size = self._gemini_config_without_size(cfg)
-        if cfg_no_size is not None:
-            strategies.append((cfg_no_size, False))
-        strategies.append((None, False))
+        strategies = []
+        for contents in content_variants:
+            for modalities in (primary_modalities, secondary_modalities):
+                if supports_response_format:
+                    strategies.append((contents, cfg, modalities, True, True))
+                strategies.append((contents, cfg, modalities, False, True))
+                if cfg_no_size is not None:
+                    strategies.append((contents, cfg_no_size, modalities, False, True))
+                strategies.append((contents, None, modalities, False, True))
+            strategies.append((contents, None, None, False, False))
 
         seen = set()
-        for icfg, use_response_format in strategies:
+        for contents, icfg, modalities, use_response_format, send_config in strategies:
             signature = (
+                repr(contents),
+                tuple(modalities) if modalities else None,
                 bool(use_response_format),
+                bool(send_config),
                 getattr(icfg, "aspect_ratio", None) if icfg else None,
                 getattr(icfg, "image_size", None) if icfg else None,
             )
             if signature in seen:
                 continue
             seen.add(signature)
-            try:
-                response = _do_call(icfg, use_response_format=use_response_format)
-                break
-            except Exception as exc:
-                last_error = exc
-                if not self._gemini_config_error(exc):
-                    raise
 
-        if response is None:
-            if last_error is not None:
-                raise last_error
-            raise RuntimeError("Google Gemini image request failed before a response was returned.")
+            # Google image endpoints can return HTTP 200 + OTHER/IMAGE_OTHER with
+            # no image even though the identical request succeeds immediately on
+            # retry. Retry only that transient/unknown class, never explicit safety.
+            for attempt in range(3):
+                try:
+                    candidate = _do_call(
+                        contents=contents,
+                        icfg=icfg,
+                        modalities=modalities,
+                        use_response_format=use_response_format,
+                        send_config=send_config,
+                    )
+                    response = candidate
+                    if self._gemini_response_has_image(candidate):
+                        return candidate
+                    if not self._gemini_response_is_other(candidate):
+                        break
+                    if attempt < 2:
+                        time.sleep(0.35 * (attempt + 1))
+                except Exception as exc:
+                    last_error = exc
+                    if not self._gemini_config_error(exc):
+                        raise
+                    break
 
-        # A successfully accepted but empty image response used to be silently
-        # treated as success in PyGPT. Retry once without optional image sizing
-        # unless Google explicitly blocked the request, then surface a real error.
-        if (
-                not self._gemini_response_has_image(response)
-                and cfg is not None
-                and not self._gemini_response_is_blocked(response)
-        ):
-            try:
-                fallback = _do_call(None, use_response_format=False)
-                if self._gemini_response_has_image(fallback) or self._gemini_response_is_blocked(fallback):
-                    response = fallback
-            except Exception:
-                pass
-
-        return response
+        if response is not None:
+            return response
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Google Gemini image request failed before a response was returned.")
 
     def _gemini_generate_image(self, prompt: str, model_id: str, resolution: str):
         """Gemini text-to-image, with optional image attachments as references."""
+        attachment_paths = self._collect_attachment_paths(self.attachments)
         return self._gemini_generate_content(
             prompt=prompt,
             model_id=model_id,
             resolution=resolution,
             extra_parts=self._attachment_image_parts(),
+            extra_image_identifiers=attachment_paths,
         )
 
     def _gemini_edit(self, prompt: str, attachments: Dict[str, Any], num: int):
-        """Gemini image-to-image editing via native generate_content."""
+        """Gemini image editing using the SDK's documented PIL.Image input path first."""
         paths = self._collect_attachment_paths(attachments)
         if len(paths) == 0:
             raise RuntimeError("No attachment provided for edit mode.")
 
+        # google-genai 1.75.0 officially supports PIL.Image directly in contents.
+        # Use the minimal documented request first: no response config at all.
+        pil_images: List[Any] = []
+        for path in paths:
+            image = self._pil_image_from_identifier(path)
+            if image is not None:
+                pil_images.append(image)
+
+        if pil_images:
+            response = self._gemini_edit_with_pil(prompt, pil_images)
+            if self._gemini_response_has_image(response):
+                return response
+
+        # Compatibility fallback for formats PIL cannot decode.
         parts: List[gtypes.Part] = []
         for img_path in paths:
             try:
@@ -717,7 +776,91 @@ class ImageWorker(QRunnable):
             model_id=self.model,
             resolution=self.resolution,
             extra_parts=parts,
+            extra_image_identifiers=paths,
         )
+
+    def _gemini_edit_identifier(self, prompt: str, identifier: str):
+        """Edit/remix one referenced image, preferring the documented PIL.Image flow."""
+        pil_image = self._pil_image_from_identifier(identifier)
+        if pil_image is not None:
+            response = self._gemini_edit_with_pil(prompt, [pil_image])
+            if self._gemini_response_has_image(response):
+                return response
+
+        ref_part = self._image_part_from_identifier(identifier)
+        if not ref_part:
+            raise RuntimeError(
+                "Invalid image_id for remix. Provide a valid local path, Files API name, "
+                "http(s) URL, data URI, or gs:// URI."
+            )
+        return self._gemini_generate_content(
+            prompt=prompt,
+            model_id=self.model,
+            resolution=self.resolution,
+            extra_parts=[ref_part],
+            extra_image_identifiers=[identifier],
+        )
+
+    def _gemini_edit_with_pil(self, prompt: str, images: List[Any]):
+        """Run the minimal documented google-genai edit request, retrying transient OTHER failures."""
+        contents: List[Any] = [prompt or ""]
+        contents.extend(images)
+
+        response = None
+        for attempt in range(3):
+            response = self.client.models.generate_content(
+                model=self.model or self.DEFAULT_GEMINI_IMAGE_MODEL,
+                contents=contents,
+            )
+            if self._gemini_response_has_image(response):
+                return response
+            if not self._gemini_response_is_other(response):
+                break
+            if attempt < 2:
+                time.sleep(0.35 * (attempt + 1))
+
+        # Conservative fallback requesting the model's normal interleaved output.
+        # Retry only OTHER/IMAGE_OTHER; explicit policy blocks are returned as-is.
+        for attempt in range(2):
+            try:
+                retry = self.client.models.generate_content(
+                    model=self.model or self.DEFAULT_GEMINI_IMAGE_MODEL,
+                    contents=contents,
+                    config=gtypes.GenerateContentConfig(response_modalities=["TEXT", "IMAGE"]),
+                )
+                response = retry
+                if self._gemini_response_has_image(retry):
+                    return retry
+                if not self._gemini_response_is_other(retry):
+                    break
+                if attempt < 1:
+                    time.sleep(0.5)
+            except Exception:
+                break
+        return response
+
+    def _pil_image_from_identifier(self, identifier: str):
+        """Load a local/remote/data image as a detached PIL.Image for google-genai contents."""
+        if not identifier:
+            return None
+        try:
+            from io import BytesIO
+            from PIL import Image as PILImage
+
+            ident = str(identifier).strip()
+            if os.path.exists(ident):
+                with PILImage.open(ident) as img:
+                    img.load()
+                    return img.copy()
+
+            data, _mime = self._image_bytes_from_identifier(ident)
+            if data:
+                with PILImage.open(BytesIO(data)) as img:
+                    img.load()
+                    return img.copy()
+        except Exception:
+            return None
+        return None
 
     def _gemini_response_parts(self, response: Any) -> List[Any]:
         """Return response parts across current and older google-genai response shapes."""
@@ -772,6 +915,24 @@ class ImageWorker(QRunnable):
     def _gemini_response_has_image(self, response: Any) -> bool:
         return any(self._extract_gemini_part_bytes(part) for part in self._gemini_response_parts(response))
 
+    def _gemini_response_is_other(self, response: Any) -> bool:
+        """True only for Google's unknown/transient OTHER or IMAGE_OTHER empty-image outcome."""
+        try:
+            feedback = getattr(response, "prompt_feedback", None)
+            reason = str(getattr(feedback, "block_reason", "") or "").upper() if feedback else ""
+            if "OTHER" in reason:
+                return True
+        except Exception:
+            pass
+        for cand in getattr(response, "candidates", None) or []:
+            try:
+                reason = str(getattr(cand, "finish_reason", "") or "").upper()
+                if reason in ("OTHER", "IMAGE_OTHER") or "IMAGE_OTHER" in reason:
+                    return True
+            except Exception:
+                continue
+        return False
+
     def _gemini_response_is_blocked(self, response: Any) -> bool:
         """Detect safety/content blocking so a blocked request is not retried unnecessarily."""
         try:
@@ -793,10 +954,45 @@ class ImageWorker(QRunnable):
     def _gemini_no_image_error(self, response: Any) -> RuntimeError:
         details: List[str] = []
         try:
+            status = getattr(response, "status", None)
+            if status:
+                details.append(f"status={status}")
+        except Exception:
+            pass
+        try:
+            error = getattr(response, "error", None)
+            if error:
+                details.append(str(error))
+        except Exception:
+            pass
+        try:
             feedback = getattr(response, "prompt_feedback", None)
             reason = getattr(feedback, "block_reason", None) if feedback else None
             if reason:
                 details.append(f"block_reason={reason}")
+        except Exception:
+            pass
+        try:
+            usage = getattr(response, "usage_metadata", None)
+            token_details = getattr(usage, "prompt_tokens_details", None) if usage else None
+            if token_details:
+                modalities = []
+                for item in token_details:
+                    modality = getattr(item, "modality", None)
+                    count = getattr(item, "token_count", None)
+                    if modality is not None:
+                        modalities.append(f"{modality}:{count}")
+                if modalities:
+                    details.append("input_modalities=" + ",".join(modalities))
+        except Exception:
+            pass
+        try:
+            response_id = getattr(response, "response_id", None)
+            model_version = getattr(response, "model_version", None)
+            if response_id:
+                details.append(f"response_id={response_id}")
+            if model_version:
+                details.append(f"model_version={model_version}")
         except Exception:
             pass
 
@@ -826,7 +1022,7 @@ class ImageWorker(QRunnable):
         return RuntimeError("Google Gemini returned no image data." + suffix)
 
     def _save_gemini_response(self, response: Any, max_images: int) -> List[str]:
-        """Save image parts from a Gemini response; never silently accept an empty response."""
+        """Save image outputs from Gemini generate_content or Interactions API responses."""
         data_items: List[bytes] = []
         for part in self._gemini_response_parts(response):
             data = self._extract_gemini_part_bytes(part)
@@ -838,8 +1034,9 @@ class ImageWorker(QRunnable):
         if not data_items:
             raise self._gemini_no_image_error(response)
 
+        limit = max(1, int(max_images or 1))
         paths: List[str] = []
-        for idx, data in enumerate(data_items):
+        for idx, data in enumerate(data_items[:limit]):
             p = self._save(idx, data)
             if p:
                 paths.append(p)
