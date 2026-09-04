@@ -117,7 +117,7 @@ class Chat:
         system_prompt = context.system_prompt_raw  # get raw system prompt, without plugin addons
         stream = context.stream
         ctx = context.ctx
-        query = ctx.input  # user input
+        query = context.prompt if context.prompt else ctx.input  # final user input (incl. attachment context)
         verbose = self.window.core.config.get("log.llama", False)
 
         if model is None or not isinstance(model, ModelItem):
@@ -183,7 +183,7 @@ class Chat:
         model = context.model
         stream = context.stream
         ctx = context.ctx
-        query = ctx.input  # user input
+        query = context.prompt if context.prompt else ctx.input  # final user input (incl. attachment context)
         verbose = self.window.core.config.get("log.llama", False)
 
         self.log("Retrieval...")
@@ -229,7 +229,7 @@ class Chat:
         system_prompt = context.system_prompt  # get final system prompt
         stream = context.stream
         ctx = context.ctx
-        query = ctx.input  # user input
+        query = context.prompt if context.prompt else ctx.input  # final user input (incl. attachment context)
         chat_mode = self.window.core.config.get("llama.idx.chat.mode")
         use_index = True
         verbose = self.window.core.config.get("log.llama", False)
@@ -293,7 +293,7 @@ class Chat:
 
         # append context from DB
         history = self.context.get_messages(
-            input_prompt=ctx.input,
+            input_prompt=query,
             system_prompt=system_prompt,
             history=context.history,
             allow_native_tool_calls=allow_native_tool_calls,
