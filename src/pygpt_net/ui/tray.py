@@ -275,3 +275,28 @@ class Tray:
         action = self.window.ui.tray_menu.get('scheduled')
         if action and action.isVisible():
             action.setVisible(False)
+
+    def update_schedule_tasks(self, num: int = 0):
+        """Update scheduled-tasks tray action and keep it visible while the plugin is enabled."""
+        if not self.is_tray:
+            return
+        action = self.window.ui.tray_menu.get('scheduled')
+        if action is None:
+            return
+        try:
+            plugins = self.window.controller.plugins
+            if not plugins.is_type_enabled('schedule'):
+                self.hide_schedule_menu()
+                return
+        except (AttributeError, RuntimeError):
+            pass
+        try:
+            count = max(0, int(num or 0))
+        except (TypeError, ValueError):
+            count = 0
+        label = trans("menu.tray.scheduled")
+        if count > 0:
+            label += f" ({count})"
+        action.setText(label)
+        if not action.isVisible():
+            action.setVisible(True)
