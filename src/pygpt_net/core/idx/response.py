@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.16 17:40:00                  #
+# Updated Date: 2026.09.04 21:08:00                  #
 # ================================================== #
 
 from typing import Any
@@ -16,6 +16,7 @@ from pygpt_net.item.ctx import CtxItem
 from pygpt_net.provider.api.reasoning import (
     is_tagged_reasoning_model, strip_and_store_tagged_reasoning,
 )
+from pygpt_net.provider.api.llama_index.stream import message_has_tool_calls
 
 class Response:
     def __init__(self, window=None):
@@ -175,5 +176,42 @@ class Response:
         :param llm: LLM instance
         :param response: Response data
         """
-        ctx.stream = response  # chunk is in response.delta
+        ctx.stream = self._stream_with_prev_message(response)  # chunk is in response.delta
         ctx.set_output("", "")
+
+    def _stream_with_prev_message(self, response: Any):
+        """
+        Preserve the native assistant message for a streamed LlamaIndex tool call.
+
+        Chat with Files without ReAct uses the normal two-request native tool-call
+        flow. The non-stream path stores ``response.message`` in
+        ``core.idx.chat.prev_message`` so the follow-up request can contain the
+        required ``assistant(tool_calls) -> tool(result)`` sequence. Previously
+        the streamed path discarded the ChatResponse objects after yielding them,
+        so the plugin executed but the follow-up request had no native assistant
+        tool-call message to continue from.
+
+        Keep the exact LlamaIndex/provider ChatMessage instead of rebuilding it
+        from normalized dictionaries. This preserves provider-specific tool-call
+        objects for both ChatCompletions and Responses API.
+
+        :param response: LlamaIndex streaming response iterator
+        :return: wrapped response iterator
+        """
+        tool_call_message = None
+        for chunk in response:
+            message = getattr(chunk, "message", None)
+            if message_has_tool_calls(message):
+                tool_call_message = message
+            yield chunk
+
+        if tool_call_message is None:
+            return
+
+        try:
+            self.window.core.idx.chat.prev_message = tool_call_message
+            self.window.core.debug.info(
+                "[chat] Preserved streamed LlamaIndex tool-call message for reply continuation."
+            )
+        except Exception as e:
+            self.window.core.debug.log(e)
