@@ -27,7 +27,7 @@ class Banners(QObject):
 
     loaded = Signal(object)
 
-    DEFAULT_API_URL = "https://pygpt.net/api/banners.json"
+    DEFAULT_API_URL = "https://pygpt.net/api/banners_small.json"
 
     def __init__(self, window=None):
         super().__init__()

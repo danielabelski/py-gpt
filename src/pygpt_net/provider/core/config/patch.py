@@ -539,6 +539,13 @@ class Patch:
                                 del image_plugin[key]
                                 updated = True
 
+            # < 2.8.9
+            if old < parse_version("2.8.9"):
+                print("Migrating config from < 2.8.9...")
+                if "app_banners_api_url" in data:
+                    data["app_banners_api_url"] = cfg_get_base("app_banners_api_url")
+                    updated = True
+
         # update file
         migrated = False
         if updated:

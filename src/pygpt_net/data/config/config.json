@@ -1,8 +1,8 @@
 {
   "__meta__": {
-    "version": "2.8.8",
-    "app.version": "2.8.8",
-    "updated_at": "2026-09-04T18:00:00"
+    "version": "2.8.9",
+    "app.version": "2.8.9",
+    "updated_at": "2026-09-05T18:00:00"
   },
   "access.audio.event.speech": false,
   "access.audio.event.speech.disabled": [],
@@ -110,7 +110,7 @@
       "value": "http://localhost:11434"
     }
   ],
-  "app_banners_api_url": "https://pygpt.net/api/banners.json",
+  "app_banners_api_url": "https://pygpt.net/api/banners_small.json",
   "assistant": "",
   "assistant_thread": "",
   "attachments_auto_index": true,

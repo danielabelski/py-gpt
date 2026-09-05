@@ -22,7 +22,7 @@ class Banner:
     """Toolbox banner UI wrapper."""
 
     WIDTH = 256
-    HEIGHT = 54
+    HEIGHT = 36
 
     def __init__(self, window=None):
         self.window = window
