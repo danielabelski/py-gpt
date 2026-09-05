@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.08.24 02:00:00                  #
+# Updated Date: 2026.09.05 14:45:00                  #
 # ================================================== #
 
 import json
@@ -615,25 +615,56 @@ class CodeExecutor:
 
         response = event.ctx.bag  # tmp response
         output = ""
+        has_code_output = False
 
-        # store tool output if available
-        if "code" in response:
-            if "output" in response["code"]:
-                output = response["code"]["output"]["content"]
+        # Store rich interpreter output when the command returned the normal
+        # response shape.  Empty content is valid (successful code with no
+        # stdout), so keep it empty and let CodeAct treat it as such.
+        if isinstance(response, dict) and "code" in response:
+            code_data = response.get("code") or {}
+            output_data = code_data.get("output") or {}
+            if "content" in output_data:
+                has_code_output = True
+                output = output_data.get("content")
+                if output is None:
+                    output = ""
+                else:
+                    output = str(output)
+
+                input_data = code_data.get("input") or {}
                 tool_output = {
                     "cmd": "ipython_execute",
                     "code": {
                         "input": {
-                            "content": response["code"]["input"]["content"],
+                            "content": str(input_data.get("content", code)),
                             "lang": "python"
                         },
                         "output": {
-                            "content": response["code"]["output"]["content"],
+                            "content": output,
                             "lang": "python"
                         }
                     },
-                    "plugin": response["plugin"],
-                    "result": response["result"]
+                    "plugin": response.get("plugin", "cmd_code_interpreter"),
+                    "result": response.get("result")
                 }
                 self.window.core.agents.tools.last_tool_output = tool_output
-        return output
+
+        if has_code_output:
+            return output
+
+        # The old implementation silently returned an empty string whenever the
+        # plugin used an error/non-standard response shape.  Propagate the actual
+        # result so the agent can reason about the failure and the UI can show it.
+        if isinstance(response, dict):
+            result = response.get("result")
+            if isinstance(result, dict):
+                result = result.get("result", result.get("context"))
+            if result is not None and str(result).strip():
+                return str(result)
+            context = response.get("context")
+            if context is not None and str(context).strip():
+                return str(context)
+        elif response is not None and str(response).strip():
+            return str(response)
+
+        return "Code execution failed: no result was returned by the interpreter."

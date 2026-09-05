@@ -8,7 +8,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.12 14:00:00                  #
+# Updated Date: 2026.09.05 14:45:00                  #
 # ================================================== #
 
 import re
@@ -267,6 +267,11 @@ class LlamaWorkflow(BaseRunner):
         content_written: bool = False
         block_open: bool = False  # logical "block" opened after first StepEvent
 
+        # CodeAct streams <execute>...</execute> as normal AgentStream content and
+        # LlamaIndex subsequently emits a ToolCall containing the same code.  Keep
+        # a cursor so the ToolCall can be persisted without streaming a duplicate.
+        code_stream_scan_pos: int = 0
+
         async for event in handler.stream_events():
             if self.is_stopped():
                 # persist current output on stop
@@ -278,28 +283,47 @@ class LlamaWorkflow(BaseRunner):
                 break
 
             if isinstance(event, ToolCallResult):
-                output = f"\n-----------\nExecution result:\n{event.tool_output}"
+                tool_output = self._tool_output_to_text(event.tool_output)
                 if verbose:
+                    output = f"\n-----------\nExecution result:\n{tool_output}"
                     print(output)
-                formatted = "\n```output\n" + str(event.tool_output) + "\n```\n"
-                item_ctx.live_output += formatted
-                item_ctx.stream = formatted
-                content_written = True
-                if item_ctx.stream_agent_output and flush:
-                    self.send_stream(item_ctx, signals, begin)
-                begin = False
 
-            elif isinstance(event, ToolCall):
-                if "code" in event.tool_kwargs:
-                    output = f"\n-----------\nTool call code:\n{event.tool_kwargs['code']}"
-                    if verbose:
-                        print(output)
-                    formatted = "\n```python\n" + str(event.tool_kwargs['code']) + "\n```\n"
+                # An empty stdout is perfectly valid (file writes, assignments,
+                # imports, etc.).  Do not manufacture an empty fenced output box.
+                if tool_output:
+                    formatted = "\n```output\n" + tool_output + "\n```\n"
                     item_ctx.live_output += formatted
                     item_ctx.stream = formatted
                     content_written = True
                     if item_ctx.stream_agent_output and flush:
                         self.send_stream(item_ctx, signals, begin)
+                    begin = False
+
+            elif isinstance(event, ToolCall):
+                if "code" in event.tool_kwargs:
+                    code = str(event.tool_kwargs["code"])
+                    if verbose:
+                        output = f"\n-----------\nTool call code:\n{code}"
+                        print(output)
+
+                    # CodeAct has already streamed this code inside <execute>
+                    # tags.  Keep the fenced copy in live_output because the
+                    # final filter removes the raw <execute> block, but do not
+                    # send the same code to WebView for the second time.
+                    source_since_last_call = item_ctx.live_output[code_stream_scan_pos:]
+                    already_streamed = self._matches_streamed_execute_code(
+                        source_since_last_call,
+                        code,
+                    )
+                    formatted = "\n```python\n" + code + "\n```\n"
+                    item_ctx.live_output += formatted
+                    item_ctx.stream = formatted
+                    content_written = True
+                    if (not already_streamed
+                            and item_ctx.stream_agent_output
+                            and flush):
+                        self.send_stream(item_ctx, signals, begin)
+                    code_stream_scan_pos = len(item_ctx.live_output)
                     begin = False
 
             elif isinstance(event, StepEvent):
@@ -401,6 +425,42 @@ class LlamaWorkflow(BaseRunner):
                 print(f"\nWorkflow final response: {final_text}")
 
         return item_ctx
+
+    @staticmethod
+    def _tool_output_to_text(tool_output: Any) -> str:
+        """Extract the textual ToolOutput content without object repr noise."""
+        if tool_output is None:
+            return ""
+        content = getattr(tool_output, "content", None)
+        if content is not None:
+            text = str(content).strip()
+        else:
+            text = str(tool_output).strip()
+        return "" if text in {"", "None"} else text
+
+    @staticmethod
+    def _matches_streamed_execute_code(source: str, code: str) -> bool:
+        """Check whether a ToolCall code payload was already streamed in <execute>."""
+        if not source or "<execute>" not in source:
+            return False
+
+        def normalize(value: str) -> str:
+            value = value.replace("\r\n", "\n").replace("\r", "\n").strip()
+            return "\n".join(line.rstrip() for line in value.split("\n"))
+
+        expected = normalize(code)
+        matches = re.findall(r"<execute>(.*?)</execute>", source, flags=re.DOTALL)
+        if not matches:
+            return False
+
+        # Normal case: one execute block -> one ToolCall.
+        if any(normalize(match) == expected for match in matches):
+            return True
+
+        # CodeAct's parser joins multiple execute blocks from one LLM turn into a
+        # single execute ToolCall.  Mirror that behavior for deduplication.
+        combined = "\n\n".join(match.strip() for match in matches)
+        return normalize(combined) == expected
 
     def _workflow_result_to_text(self, result: Any) -> str:
         """Extract a user-facing final answer from a workflow terminal result."""
