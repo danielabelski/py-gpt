@@ -89,6 +89,72 @@ class Context:
         `{query}`
         """
 
+    @staticmethod
+    def is_active(item: Dict[str, Any]) -> bool:
+        """Return True when an additional-context item is enabled.
+
+        Older database rows do not contain the ``active`` field; they remain
+        enabled for backward compatibility.
+        """
+        if not isinstance(item, dict):
+            return True
+        return item.get("active", True) is not False
+
+    def _remove_item_from_index(self, meta: CtxMeta, item: Dict[str, Any]) -> bool:
+        """Remove one attachment's indexed documents without deleting its stored content."""
+        doc_ids = item.get("doc_ids") if isinstance(item, dict) else None
+        if not doc_ids or not isinstance(doc_ids, list):
+            if item.get("indexed"):
+                item["indexed"] = False
+                item["doc_ids"] = []
+                return True
+            return False
+
+        index_path = os.path.join(self.get_dir(meta), self.dir_index)
+        changed = False
+        for doc_id in list(doc_ids):
+            try:
+                self.window.core.idx.indexing.remove_attachment(index_path, doc_id)
+                changed = True
+            except Exception as e:
+                self.window.core.debug.log(e)
+        if changed or item.get("indexed"):
+            item["indexed"] = False
+            item["doc_ids"] = []
+            return True
+        return False
+
+    def set_display_item_active(
+            self,
+            meta: CtxMeta,
+            item: Dict[str, Any],
+            active: bool
+    ) -> bool:
+        """Enable/disable one visible attachment row and persist the state.
+
+        Archive rows represent multiple stored members; all members receive the
+        same state.  Disabling also removes already-indexed documents so RAG
+        cannot return content from an inactive attachment.
+        """
+        members = item.get("_ctx_items") if isinstance(item, dict) else None
+        if not members:
+            members = [item]
+
+        active = bool(active)
+        changed = False
+        for member in members:
+            if not isinstance(member, dict):
+                continue
+            if member.get("active", True) is not active or "active" not in member:
+                member["active"] = active
+                changed = True
+            if not active and self._remove_item_from_index(meta, member):
+                changed = True
+
+        if changed:
+            self.window.core.ctx.save(meta.id)
+        return changed
+
     def get_context(
             self,
             mode: str,
@@ -139,6 +205,8 @@ class Context:
 
         if os.path.exists(meta_path) and os.path.isdir(meta_path):
             for file in meta.get_additional_ctx():
+                if not self.is_active(file):
+                    continue
                 if ("type" not in file
                         or file["type"] not in ["local_file", "url"]):
                     continue
@@ -200,9 +268,14 @@ class Context:
         idx_path = os.path.join(self.get_dir(meta), self.dir_index)
 
         indexed = False
+        metadata_changed = False
         has_local_context = False
         # index local files if not indexed by auto_index; native refs bypass local RAG entirely
         for i, file in enumerate(meta.get_additional_ctx()):
+            if not self.is_active(file):
+                if self._remove_item_from_index(meta, file):
+                    metadata_changed = True
+                continue
             if file.get("type") == "native_file":
                 continue
             has_local_context = True
@@ -227,7 +300,7 @@ class Context:
                 file["doc_ids"] = doc_ids
                 indexed = True
 
-        if indexed:
+        if indexed or metadata_changed:
             # update ctx in DB
             self.window.core.ctx.replace(meta)
             self.window.core.ctx.save(meta.id)
@@ -427,6 +500,7 @@ class Context:
             )
 
         result = {
+            "active": True,
             "name": name,
             "context_name": self.get_attachment_context_name(attachment, real_path),
             "path": attachment.path,
@@ -464,6 +538,7 @@ class Context:
             except OSError:
                 size = 0
         result = {
+            "active": True,
             "name": os.path.basename(str(attachment.path or attachment.name or "")),
             "context_name": self.get_attachment_context_name(attachment, real_path),
             "path": attachment.path,
@@ -708,6 +783,7 @@ class Context:
 
             if not group["archive"]:
                 display_item = copy.copy(members[0])
+                display_item["active"] = self.is_active(members[0])
                 if display_item.get("native"):
                     display_item["name"] = f'{display_item.get("name", "No name")} (Native)'
                 display_item["_ctx_items"] = members
@@ -734,6 +810,7 @@ class Context:
             display_item["length"] = sum(int(item.get("length", 0) or 0) for item in members)
             display_item["tokens"] = sum(int(item.get("tokens", 0) or 0) for item in members)
             display_item["indexed"] = bool(members) and all(bool(item.get("indexed")) for item in members)
+            display_item["active"] = bool(members) and all(self.is_active(item) for item in members)
             display_item["_ctx_items"] = members
             display_item["_archive"] = True
 

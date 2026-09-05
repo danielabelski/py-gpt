@@ -562,6 +562,19 @@ class Attachment(QObject):
         self.update_list(meta)
         self.window.controller.ctx.update()
 
+    def set_active_by_idx(self, idx: int, active: bool):
+        """Set active state for an uploaded context attachment."""
+        meta = self.window.core.ctx.get_current_meta()
+        if meta is None or not meta.has_additional_ctx():
+            return
+        items = self.window.core.attachments.context.get_display_all(meta)
+        if idx < 0 or idx >= len(items):
+            return
+        if self.window.core.attachments.context.set_display_item_active(meta, items[idx], active):
+            self.update_list(meta)
+            self.window.controller.ctx.update()
+            self.window.controller.ui.update_tokens()
+
     def select(self, idx: int):
         """
         Select uploaded file
@@ -711,6 +724,8 @@ class Attachment(QObject):
             return 0
         tokens = 0
         for item in meta.get_additional_ctx():
+            if item.get("active", True) is False:
+                continue
             if "tokens" in item:
                 try:
                     tokens += int(item["tokens"])

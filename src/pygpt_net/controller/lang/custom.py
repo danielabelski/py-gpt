@@ -109,6 +109,12 @@ class Custom:
         self.window.ui.models['attachments'].setHeaderData(1, Qt.Horizontal, trans('attachments.header.path'))
         self.window.ui.models['attachments_uploaded'].setHeaderData(0, Qt.Horizontal, trans('attachments.header.name'))
         self.window.ui.models['attachments_uploaded'].setHeaderData(1, Qt.Horizontal, trans('attachments.header.path'))
+        self.window.ui.models['attachments_ctx'].setHeaderData(0, Qt.Horizontal, trans('attachments.header.active'))
+        self.window.ui.models['attachments_ctx'].setHeaderData(1, Qt.Horizontal, trans('attachments.header.name'))
+        self.window.ui.models['attachments_ctx'].setHeaderData(2, Qt.Horizontal, trans('attachments.header.path'))
+        self.window.ui.models['attachments_ctx'].setHeaderData(3, Qt.Horizontal, trans('attachments.header.size'))
+        self.window.ui.models['attachments_ctx'].setHeaderData(4, Qt.Horizontal, trans('attachments.header.length'))
+        self.window.ui.models['attachments_ctx'].setHeaderData(5, Qt.Horizontal, trans('attachments.header.idx'))
 
         # dialog: about
         self.window.ui.nodes['dialog.about.content'].setText(trans(self.window.ui.dialogs.about.prepare_content()))

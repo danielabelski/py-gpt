@@ -329,6 +329,8 @@ class Native:
                 for item in meta.get_additional_ctx():
                     if not isinstance(item, dict):
                         continue
+                    if item.get("active", True) is False:
+                        continue
                     if item.get("type") != "native_file" or item.get("native_provider") != provider:
                         continue
                     add({

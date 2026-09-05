@@ -164,6 +164,8 @@ class Attachments:
             return []
         attachments = []
         for attachment in meta.get_additional_ctx():
+            if isinstance(attachment, dict) and attachment.get("active", True) is False:
+                continue
             item = AttachmentItem()
             if 'uuid' not in attachment:
                 continue

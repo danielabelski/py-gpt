@@ -12,7 +12,7 @@
 import os
 
 from PySide6 import QtCore
-from PySide6.QtGui import QStandardItemModel, Qt, QIcon
+from PySide6.QtGui import QStandardItem, QStandardItemModel, Qt, QIcon
 from PySide6.QtWidgets import QVBoxLayout, QPushButton, QHBoxLayout, QWidget, QRadioButton, QCheckBox
 
 from pygpt_net.ui.widget.element.labels import HelpLabel
@@ -28,6 +28,7 @@ class AttachmentsCtx:
         """
         self.window = window
         self.id = 'attachments_ctx'
+        self._updating = False
 
     def setup(self) -> QVBoxLayout:
         """
@@ -99,6 +100,8 @@ class AttachmentsCtx:
 
         self.window.ui.models[self.id] = self.create_model(self.window.ui.nodes[self.id])
         self.window.ui.nodes[self.id].setModel(self.window.ui.models[self.id])
+        self.window.ui.nodes[self.id].configureColumns()
+        self.window.ui.models[self.id].itemChanged.connect(self.on_item_changed)
 
     def create_model(self, parent) -> QStandardItemModel:
         """
@@ -107,12 +110,13 @@ class AttachmentsCtx:
         :param parent: parent widget
         :return: QStandardItemModel
         """
-        model = QStandardItemModel(0, 5, parent)
-        model.setHeaderData(0, Qt.Horizontal, trans('attachments.header.name'))
-        model.setHeaderData(1, Qt.Horizontal, trans('attachments.header.path'))
-        model.setHeaderData(2, Qt.Horizontal, trans('attachments.header.size'))
-        model.setHeaderData(3, Qt.Horizontal, trans('attachments.header.length'))
-        model.setHeaderData(4, Qt.Horizontal, trans('attachments.header.idx'))
+        model = QStandardItemModel(0, 6, parent)
+        model.setHeaderData(0, Qt.Horizontal, trans('attachments.header.active'))
+        model.setHeaderData(1, Qt.Horizontal, trans('attachments.header.name'))
+        model.setHeaderData(2, Qt.Horizontal, trans('attachments.header.path'))
+        model.setHeaderData(3, Qt.Horizontal, trans('attachments.header.size'))
+        model.setHeaderData(4, Qt.Horizontal, trans('attachments.header.length'))
+        model.setHeaderData(5, Qt.Horizontal, trans('attachments.header.idx'))
         return model
 
     def update(self, data):
@@ -123,44 +127,67 @@ class AttachmentsCtx:
         """
         model = self.window.ui.models[self.id]
         row_count = len(data)
-        model.beginResetModel()
-        model.setRowCount(row_count)
+        self._updating = True
+        model.blockSignals(True)
+        try:
+            model.beginResetModel()
+            model.setRowCount(row_count)
 
-        m_index = model.index
-        m_setData = model.setData
-        tooltip_role = QtCore.Qt.ToolTipRole
-        trans_indexed = trans("attachments.ctx.indexed")
-        sizeof_fmt = self.window.core.filesystem.sizeof_fmt
-        stat = os.stat
+            m_index = model.index
+            m_setData = model.setData
+            tooltip_role = QtCore.Qt.ToolTipRole
+            trans_indexed = trans("attachments.ctx.indexed")
+            sizeof_fmt = self.window.core.filesystem.sizeof_fmt
+            stat = os.stat
 
-        for i, item in enumerate(data):
-            name = item.get('name', "No name")
-            path = item.get('path', "No path")
-            uuid = item.get('uuid', "")
-            length = "-"
-            if 'length' in item:
-                length = str(item['length'])
-            if 'tokens' in item:
-                length += ' / ~' + str(item['tokens'])
-            idx_str = trans_indexed if item.get('indexed') else ""
+            for i, item in enumerate(data):
+                name = item.get('name', "No name")
+                path = item.get('path', "No path")
+                uuid = item.get('uuid', "")
+                length = "-"
+                if 'length' in item:
+                    length = str(item['length'])
+                if 'tokens' in item:
+                    length += ' / ~' + str(item['tokens'])
+                idx_str = trans_indexed if item.get('indexed') else ""
 
-            size = "-"
-            if isinstance(path, str):
-                try:
-                    st = stat(path)
-                except (OSError, ValueError, TypeError):
-                    pass
-                else:
-                    size = sizeof_fmt(st.st_size)
-            if size == "-" and 'size' in item:
-                size = sizeof_fmt(item['size'])
+                size = "-"
+                if isinstance(path, str):
+                    try:
+                        st = stat(path)
+                    except (OSError, ValueError, TypeError):
+                        pass
+                    else:
+                        size = sizeof_fmt(st.st_size)
+                if size == "-" and 'size' in item:
+                    size = sizeof_fmt(item['size'])
 
-            idx0 = m_index(i, 0)
-            m_setData(idx0, "uuid: " + str(uuid), tooltip_role)
-            m_setData(idx0, name)
-            m_setData(m_index(i, 1), path)
-            m_setData(m_index(i, 2), size)
-            m_setData(m_index(i, 3), length)
-            m_setData(m_index(i, 4), idx_str)
+                active_item = QStandardItem()
+                active_item.setCheckable(True)
+                active_item.setEditable(False)
+                active_item.setTextAlignment(Qt.AlignCenter)
+                active_item.setCheckState(
+                    Qt.Checked if item.get("active", True) is not False else Qt.Unchecked
+                )
+                model.setItem(i, 0, active_item)
 
-        model.endResetModel()
+                idx_name = m_index(i, 1)
+                m_setData(idx_name, "uuid: " + str(uuid), tooltip_role)
+                m_setData(idx_name, name)
+                m_setData(m_index(i, 2), path)
+                m_setData(m_index(i, 3), size)
+                m_setData(m_index(i, 4), length)
+                m_setData(m_index(i, 5), idx_str)
+
+            model.endResetModel()
+        finally:
+            model.blockSignals(False)
+            self._updating = False
+
+    def on_item_changed(self, item: QStandardItem):
+        """Persist Active checkbox changes for context attachments."""
+        if self._updating or item is None or item.column() != 0:
+            return
+        active = item.checkState() == Qt.Checked
+        self.window.controller.chat.attachment.set_active_by_idx(item.row(), active)
+
