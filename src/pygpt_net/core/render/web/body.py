@@ -15,7 +15,6 @@ from random import shuffle as _shuffle
 
 from typing import Optional, List, Dict, Tuple
 
-from pygpt_net.core.text.utils import elide_filename
 from pygpt_net.core.events import Event
 from pygpt_net.item.ctx import CtxItem
 from pygpt_net.utils import trans
@@ -431,11 +430,10 @@ class Body:
                 <video class="video-player" controls>
                     <source src="{source_url}" type="video/{ext[1:]}">
                 </video>
-                <p><a href="bridge://play_video/{url}" class="title">{elide_filename(basename)}</a></p>
             </div>
             '''
         url_preview = f"bridge://open_image/{url}"
-        return f'<div class="extra-src-img-box" title="{url}"><div class="img-outer"><div class="img-wrapper"><a href="{url_preview}"><img src="{url}" class="image"></a></div><a href="{url}" class="title">{elide_filename(basename)}</a></div></div><br/>'
+        return f'<div class="extra-src-img-box" title="{url}"><div class="img-outer"><div class="img-wrapper"><a href="{url_preview}"><img src="{url}" class="image"></a></div></div></div><br/>'
 
     def get_url_html(
             self,
