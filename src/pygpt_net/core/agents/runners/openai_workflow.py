@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.09.26 17:00:00                  #
+# Updated Date: 2026.09.05 13:54:00                  #
 # ================================================== #
 
 from typing import Dict, Any, List, Optional
@@ -67,6 +67,17 @@ class OpenAIWorkflow(BaseRunner):
 
         self.set_busy(signals)
 
+        # A number of OpenAI agent providers emit an empty ``on_step`` before
+        # starting a request only to prepare the next agent/header.  That is not
+        # response data and must not hide the global loading indicator.  Keep a
+        # small per-run state so the loader stays visible until the first real
+        # payload from every agent/step.
+        response_state = {"waiting": True}
+
+        def set_waiting():
+            response_state["waiting"] = True
+            self.set_busy(signals)
+
         # append input to messages
         context = agent_kwargs.get("context", BridgeContext())
         attachments = context.attachments if context else []
@@ -86,7 +97,15 @@ class OpenAIWorkflow(BaseRunner):
             :param ctx: CtxItem
             :param begin: whether this is the first step
             """
-            self.send_stream(ctx, signals, begin)
+            chunk = ctx.stream if isinstance(ctx.stream, str) else ""
+            if not chunk.strip():
+                # Empty pre-flight steps are used by multi-agent providers to
+                # set the next agent name.  They are not response data.
+                return
+
+            first_data = response_state["waiting"]
+            self.send_stream(ctx, signals, begin or first_data)
+            response_state["waiting"] = False
 
         def on_stop(ctx: CtxItem):
             """
@@ -112,6 +131,7 @@ class OpenAIWorkflow(BaseRunner):
             ctx.stream = "\n"
             self.send_stream(ctx, signals, False)
             self.next_stream(ctx, signals)
+            set_waiting()
 
         def on_next_ctx(
                 ctx: CtxItem,
@@ -163,6 +183,12 @@ class OpenAIWorkflow(BaseRunner):
                 next_ctx.extra["agent_finish_evaluate"] = True  # mark as feedback response (ignored in loop evaluation)
 
             self.send_response(next_ctx, signals, KernelEvent.APPEND_DATA)
+            if not finish:
+                # APPEND_DATA finalizes/renders the previous partial context and
+                # its normal chat pipeline emits STATE_IDLE.  Re-enter BUSY
+                # afterwards because the workflow is already waiting for the
+                # next agent/step.
+                set_waiting()
             return next_ctx
 
         def on_error(error: Any):

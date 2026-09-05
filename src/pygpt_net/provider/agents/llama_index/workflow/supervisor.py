@@ -8,7 +8,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.09.26 22:25:00                  #
+# Updated Date: 2026.09.05 14:45:00                  #
 # ================================================== #
 
 import re
@@ -243,30 +243,39 @@ class SupervisorWorkflow(Workflow):
         )
         sup_input = "\n".join(parts)
 
-        # Run Supervisor with stream muted to avoid extra blocks/finishes.
+        # Announce the Supervisor step BEFORE waiting for the muted agent call.
+        # The runner treats StepEvent as a transition boundary: it finalizes the
+        # previous agent block (if any), creates the next partial context and
+        # switches the UI back to BUSY.  Emitting this only after ``await`` left
+        # the UI with no loader for the whole Supervisor inference.
+        await self._emit_step(
+            ctx,
+            agent_name=self._supervisor.name,
+            index=ev.round_idx + 1,
+            total=ev.max_rounds,
+        )
+
+        # Run Supervisor with stream muted to avoid leaking its internal JSON.
         sup_resp = await self._run_muted(ctx, self._supervisor.run(user_msg=sup_input, memory=self._supervisor_memory))
         directive = parse_supervisor_json(str(sup_resp))
 
-        # Final/ask_user/max_rounds -> emit single Supervisor block and stop (schema-like).
+        # Final/ask_user/max_rounds -> emit text into the already announced
+        # Supervisor block and stop.
         if directive.action == "final":
-            await self._emit_step(ctx, agent_name=self._supervisor.name, index=ev.round_idx + 1, total=ev.max_rounds)
             await self._emit_text(ctx, f"\n\n{directive.final_answer or str(sup_resp)}", agent_name=self._supervisor.name)
             return OutputEvent(status="final", final_answer=directive.final_answer or str(sup_resp), rounds_used=ev.round_idx)
 
         if directive.action == "ask_user" and ev.stop_on_ask_user:
-            await self._emit_step(ctx, agent_name=self._supervisor.name, index=ev.round_idx + 1, total=ev.max_rounds)
             q = directive.question or "I need more information, please clarify."
             await self._emit_text(ctx, f"\n\n{q}", agent_name=self._supervisor.name)
             return OutputEvent(status="ask_user", final_answer=q, rounds_used=ev.round_idx)
 
         if ev.round_idx >= ev.max_rounds:
-            await self._emit_step(ctx, agent_name=self._supervisor.name, index=ev.round_idx + 1, total=ev.max_rounds)
             await self._emit_text(ctx, "\n\nMax rounds exceeded.", agent_name=self._supervisor.name)
             return OutputEvent(status="max_rounds", final_answer="Exceeded maximum number of iterations.", rounds_used=ev.round_idx)
 
         # Emit exactly one Supervisor block with the instruction (no JSON leakage, no duplicates).
         instruction = (directive.instruction or "").strip() or "Perform a step that gets closest to fulfilling the DoD."
-        await self._emit_step(ctx, agent_name=self._supervisor.name, index=ev.round_idx + 1, total=ev.max_rounds)
         await self._emit_text(ctx, f"\n\n{instruction}", agent_name=self._supervisor.name)
 
         return ExecuteEvent(
@@ -286,12 +295,22 @@ class SupervisorWorkflow(Workflow):
         :param ev: ExecuteEvent containing the instruction and context.
         :return: InputEvent for the next round or final output.
         """
+        # Announce the Worker step BEFORE starting the muted call.  This is the
+        # important transition for the loading indicator: after the Supervisor
+        # instruction is rendered, the UI must immediately enter BUSY and stay
+        # there until the first Worker payload is emitted.
+        await self._emit_step(
+            ctx,
+            agent_name=self._worker.name,
+            index=ev.round_idx + 1,
+            total=ev.max_rounds,
+        )
+
         # Run Worker with stream muted; we will emit a single block with the final text.
         worker_input = f"Instruction from Supervisor:\n{ev.instruction}\n"
         worker_resp = await self._run_muted(ctx, self._worker.run(user_msg=worker_input, memory=self._worker_memory))
 
-        # Emit exactly one Worker block (schema-style: one AgentStream per node).
-        await self._emit_step(ctx, agent_name=self._worker.name, index=ev.round_idx + 1, total=ev.max_rounds)
+        # Emit the response into the Worker block announced above.
         await self._emit_text(ctx, f"\n\n{str(worker_resp)}", agent_name=self._worker.name)
 
         return InputEvent(

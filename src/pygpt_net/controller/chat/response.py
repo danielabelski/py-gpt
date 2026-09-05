@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.09.07 05:00:00                  #
+# Updated Date: 2026.09.05 14:20:00                  #
 # ================================================== #
 
 from typing import Dict, Any
@@ -270,12 +270,27 @@ class Response:
             return
 
         # not agent final response
-        if ctx.extra is None or (isinstance(ctx.extra, dict) and "agent_finish" not in ctx.extra):
+        #
+        # APPEND_DATA for an intermediate agent step goes through the normal chat
+        # output lifecycle above. That lifecycle emits STATE_IDLE from
+        # handle_complete(), post_handle() and handle_end(), because for ordinary
+        # chat responses the context is complete at this point. In an agent
+        # workflow this is different: the rendered partial context only means that
+        # one agent/step has finished and the workflow is now waiting for the next
+        # agent. Re-assert BUSY *after* rendering/reload so the loading indicator
+        # stays visible until the next real stream chunk arrives. The first chunk
+        # is rendered with begin=True and beginStream(true) hides the spinner.
+        agent_finished = isinstance(ctx.extra, dict) and "agent_finish" in ctx.extra
+        if not agent_finished:
             self.window.update_status(trans("status.agent.reasoning"))
             controller.chat.common.lock_input()  # lock input, re-enable stop button
+            dispatch(KernelEvent(KernelEvent.STATE_BUSY, {
+                "id": "agent",
+                "msg": trans("status.agent.reasoning"),
+            }))
 
         # agent final response, with fix for async delayed finish (prevent multiple calls for the same response)
-        if ctx.extra is not None and (isinstance(ctx.extra, dict) and "agent_finish" in ctx.extra):
+        if agent_finished:
             consume = False
             if self.last_response_id is None or self.last_response_id < ctx.id:
                 consume = True

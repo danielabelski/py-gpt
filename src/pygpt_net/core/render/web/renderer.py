@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.04 12:20:00                  #
+# Updated Date: 2026.09.05 13:58:00                  #
 # ================================================== #
 
 import json
@@ -182,6 +182,15 @@ class Renderer(BaseRenderer):
         self._stream_last_flush: dict[int, float] = {}
         self._stream_last_cleanup: float = 0.0
 
+        # Desired loading-indicator state per chat PID.  A WebEngine reload
+        # recreates ``#_loader_`` with the default ``hidden`` class, so a
+        # STATE_BUSY emitted while the page is reloading would otherwise be
+        # visually lost.  Keep the desired state on the Python side and
+        # restore it when the page finishes loading.  STREAM_APPEND(begin=True)
+        # clears this flag because JS hides the loader on the first response
+        # chunk.
+        self._loading_visible: dict[int, bool] = {}
+
         # Pid-related cached methods
         self._get_pid = None
         self._get_output_node_by_meta = None
@@ -201,6 +210,7 @@ class Renderer(BaseRenderer):
     def prepare(self):
         """Prepare renderer"""
         self.pids = {}
+        self._loading_visible = {}
 
     def on_load(self, meta: CtxMeta = None):
         """
@@ -248,6 +258,20 @@ class Renderer(BaseRenderer):
             self.clear_nodes(pid)
             self.append(pid, self.pids[pid].html, flush=True)
             self.pids[pid].html = ""
+
+        # Reloading the WebView recreates the loader as hidden.  If the last
+        # renderer state for this chat is still BUSY (for example while an
+        # OpenAI Supervisor is waiting for a Worker), restore the spinner after
+        # the new page is ready.  If a real response chunk arrived during the
+        # reload, append_chunk(begin=True) has already cleared this flag and we
+        # intentionally leave the spinner hidden.
+        if self._loading_visible.get(pid, False):
+            try:
+                node.page().runJavaScript(
+                    "if (typeof window.showLoading !== 'undefined') showLoading();"
+                )
+            except Exception:
+                pass
 
     def get_pid(self, meta: CtxMeta) -> Optional[int]:
         """
@@ -333,6 +357,7 @@ class Renderer(BaseRenderer):
             if meta:
                 pid = self.get_pid(meta)
                 if pid is not None:
+                    self._loading_visible[pid] = True
                     node = self.get_output_node_by_pid(pid)
                     try:
                         node.page().runJavaScript(
@@ -343,6 +368,7 @@ class Renderer(BaseRenderer):
 
         elif state == RenderEvent.STATE_IDLE:
             for pid in self.pids:
+                self._loading_visible[pid] = False
                 node = self.get_output_node_by_pid(pid)
                 if node is not None:
                     try:
@@ -354,6 +380,7 @@ class Renderer(BaseRenderer):
 
         elif state == RenderEvent.STATE_ERROR:
             for pid in self.pids:
+                self._loading_visible[pid] = False
                 node = self.get_output_node_by_pid(pid)
                 if node is not None:
                     try:
@@ -803,6 +830,10 @@ class Renderer(BaseRenderer):
         pctx.item = ctx
 
         if begin:
+            # JS beginStream(true) hides the loader because this is the first
+            # response chunk.  Mirror that state in Python so a concurrent
+            # WebEngine reload cannot restore a stale BUSY spinner afterwards.
+            self._loading_visible[pid] = False
             try:
                 self.get_output_node(meta).page().runJavaScript(
                     "if (typeof window.beginStream !== 'undefined') beginStream(true);"
@@ -1776,6 +1807,7 @@ class Renderer(BaseRenderer):
         self._stream_acc.pop(pid, None)
         self._stream_header.pop(pid, None)
         self._stream_last_flush.pop(pid, None)
+        self._loading_visible.pop(pid, None)
 
     def on_js_ready(self, pid: int) -> None:
         """
