@@ -676,7 +676,7 @@ class Tabs:
         if hasattr(tab.child, "setOwner"):
             tab.child.setOwner(tab)
 
-        tabs.setTabIcon(tab.idx, QIcon(tab.icon))
+        # Chat tabs intentionally use text only (no leading icon).
         if tab.tooltip is not None:
             tabs.setTabToolTip(tab.idx, tab.tooltip)
 
@@ -797,10 +797,14 @@ class Tabs:
         old_tabs.removeTab(tab.idx)
         new_column = self.window.ui.layout.get_column_by_idx(column_idx)
         new_tabs = new_column.get_tabs()
-        icon = QIcon()  # for test purposes only
-        if isinstance(tab.icon, str):
-            icon = QIcon(tab.icon)
-        tab.idx = new_tabs.addTab(tab.child, icon, tab.title)
+        if tab.type == Tab.TAB_CHAT:
+            # Chat tabs intentionally use text only (no leading icon).
+            tab.idx = new_tabs.addTab(tab.child, tab.title)
+        else:
+            icon = QIcon()  # for test purposes only
+            if isinstance(tab.icon, str):
+                icon = QIcon(tab.icon)
+            tab.idx = new_tabs.addTab(tab.child, icon, tab.title)
         tab.parent = new_column
         tab.column_idx = column_idx
         self.update()
