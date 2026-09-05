@@ -51,6 +51,28 @@ class NodeTemplateEngine {
 		return String(value);
 	}
 
+	// Build a fenced JSON Markdown block for tool request/response payloads.
+	_toolCodeMarkdown(value) {
+		const text = this._formatToolPayload(value);
+		if (!text) return '';
+
+		// Use a fence longer than any backtick run contained in the payload so
+		// arbitrary JSON string values cannot close the block accidentally.
+		let maxTicks = 0;
+		const runs = text.match(/`+/g);
+		if (runs) runs.forEach(run => { maxTicks = Math.max(maxTicks, run.length); });
+		const fence = '`'.repeat(Math.max(3, maxTicks + 1));
+		return `${fence}json\n${text}\n${fence}`;
+	}
+
+	// Emit a normal Markdown placeholder so the standard renderer creates the
+	// same code wrapper/highlighting/copy UI as code fenced in assistant text.
+	_renderToolCode(value) {
+		const md = this._toolCodeMarkdown(value);
+		if (!md) return '';
+		return `<div class='tool-output-markdown' md-block-markdown='1'>${this._escapeHtml(md)}</div>`;
+	}
+
 	// Render name header given role
 	_nameHeader(role, name, avatarUrl) {
 		if (!name && !avatarUrl) return '';
@@ -275,12 +297,10 @@ class NodeTemplateEngine {
 		const toolCalls = Array.isArray(extra.tool_calls) ? extra.tool_calls.filter(Boolean) : [];
 		const hasToolCalls = toolCalls.length > 0;
 
-		// Backward-compatible HTML-ready result. New blocks also carry the raw
-		// result so it can be escaped here instead of being injected as HTML.
+		// Keep the legacy HTML-ready payload only for old non-structured blocks.
+		// Structured tool calls use the raw display result as Markdown JSON code.
 		const legacyToolOutput = (extra.tool_output != null) ? String(extra.tool_output) : '';
-		const resultHtml = (extra.tool_result != null)
-			? this._escapeHtml(String(extra.tool_result))
-			: legacyToolOutput;
+		const toolResult = (extra.tool_result != null) ? String(extra.tool_result) : '';
 
 		// A tool request itself makes the wrapper visible immediately. The result
 		// can arrive later through ToolOutput.update().
@@ -300,8 +320,9 @@ class NodeTemplateEngine {
 			const names = rawNames.map((name) => this._escapeHtml(name));
 			toolNamesAttr = this._escapeHtml(JSON.stringify(rawNames));
 			const requests = toolCalls
-				.map((call) => this._escapeHtml(this._formatToolPayload(call.request)))
-				.join('\n\n');
+				.map((call) => this._renderToolCode(call.request))
+				.join('');
+			const resultCode = this._renderToolCode(toolResult);
 
 			const arrowHtml = `<img src='${this._esc(expIcon)}' class='tool-output-arrow' width='25' height='25' alt=''>`;
 			titleHtml =
@@ -317,7 +338,7 @@ class NodeTemplateEngine {
 				`</div>` +
 				`<div class='tool-output-section'>` +
 				`<b>${this._escapeHtml(responseLabel)}:</b>` +
-				`<div class='tool-output-data tool-output-result-data'>${resultHtml}</div>` +
+				`<div class='tool-output-data tool-output-result-data'>${resultCode}</div>` +
 				`</div>`;
 		}
 
@@ -331,10 +352,12 @@ class NodeTemplateEngine {
 			? ` id='tool-output-${this._esc(block.id)}' data-tool-names='${toolNamesAttr}'`
 			: '';
 
+		const contentClass = hasToolCalls ? 'tool-output-content' : 'content';
+
 		return (
 			`<div class='tool-output'${toolAttrs} style='${wrapperDisplay}'>` +
 			`${titleHtml}${legacyToggleHtml}` +
-			`<div class='content' style='display:none' data-trusted='1'>${contentHtml}</div>` +
+			`<div class='${contentClass}' style='display:none' data-trusted='1'>${contentHtml}</div>` +
 			`</div>`
 		);
 	}

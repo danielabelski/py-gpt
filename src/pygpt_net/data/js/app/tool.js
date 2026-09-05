@@ -218,6 +218,84 @@ class ToolOutput {
 		if (arrow) arrow.classList.toggle('toggle-expanded', expanded);
 	}
 
+	// Return the collapsible body while keeping compatibility with HTML produced
+	// by older frontend bundles that used the generic `.content` class.
+	_content(outputEl) {
+		if (!outputEl) return null;
+		return outputEl.querySelector('.tool-output-content, .content');
+	}
+
+	// Pretty-print valid JSON, preserving arbitrary non-JSON tool output as text.
+	_formatPayload(value) {
+		if (value == null) return '';
+		const raw = String(value);
+		const trimmed = raw.trim();
+		if (!trimmed) return '';
+		try {
+			return JSON.stringify(JSON.parse(trimmed), null, 2);
+		} catch (_) {
+			return raw;
+		}
+	}
+
+	// Build a robust JSON fence accepted by the same Markdown parser used for
+	// regular assistant messages.
+	_codeMarkdown(value) {
+		const text = this._formatPayload(value);
+		if (!text) return '';
+		let maxTicks = 0;
+		const runs = text.match(/`+/g);
+		if (runs) runs.forEach(run => { maxTicks = Math.max(maxTicks, run.length); });
+		const fence = '`'.repeat(Math.max(3, maxTicks + 1));
+		return `${fence}json\n${text}\n${fence}`;
+	}
+
+	// Recover currently displayed structured result for append() calls.
+	_resultRaw(resultEl) {
+		if (!resultEl) return '';
+		if (Object.prototype.hasOwnProperty.call(resultEl, '_toolRaw')) {
+			return String(resultEl._toolRaw || '');
+		}
+
+		const code = resultEl.querySelector('.code-wrapper pre code');
+		if (code) return code.textContent || '';
+
+		const pending = resultEl.querySelector('[md-block-markdown]');
+		if (pending) {
+			const src = pending.textContent || '';
+			const match = src.match(/^(`{3,})json[^\n]*\n([\s\S]*?)\n\1\s*$/i);
+			if (match) return match[2];
+			return src;
+		}
+
+		return resultEl.textContent || '';
+	}
+
+	// Rebuild the structured Result section as Markdown and let the regular
+	// renderer create/highlight the code block. The outer container stays stable
+	// so live tool updates can replace it repeatedly.
+	_renderStructuredResult(resultEl, content) {
+		if (!resultEl) return;
+		const raw = content == null ? '' : String(content);
+		resultEl._toolRaw = raw;
+		resultEl.replaceChildren();
+		if (!raw) return;
+
+		const md = document.createElement('div');
+		md.className = 'tool-output-markdown';
+		md.setAttribute('md-block-markdown', '1');
+		md.textContent = this._codeMarkdown(raw);
+		resultEl.appendChild(md);
+
+		try {
+			const renderer = (typeof runtime !== 'undefined' && runtime) ? runtime.renderer : null;
+			if (renderer && typeof renderer.renderPendingMarkdown === 'function') {
+				const pending = renderer.renderPendingMarkdown(resultEl);
+				if (pending && typeof pending.catch === 'function') pending.catch(() => {});
+			}
+		} catch (_) {}
+	}
+
 	// Placeholder for loader show (can be extended by host).
 	showLoader() {
 		return;
@@ -261,11 +339,12 @@ class ToolOutput {
 		this.enable();
 		const els = document.querySelectorAll('.tool-output');
 		if (els.length) {
-			const contentEl = els[els.length - 1].querySelector('.content');
+			const contentEl = this._content(els[els.length - 1]);
 			if (!contentEl) return;
 			const resultEl = contentEl.querySelector('.tool-output-result-data');
 			if (resultEl) {
-				resultEl.insertAdjacentText('beforeend', content == null ? '' : String(content));
+				const next = this._resultRaw(resultEl) + (content == null ? '' : String(content));
+				this._renderStructuredResult(resultEl, next);
 			} else {
 				contentEl.insertAdjacentHTML('beforeend', content == null ? '' : String(content));
 			}
@@ -279,11 +358,11 @@ class ToolOutput {
 		this.enable();
 		const els = document.querySelectorAll('.tool-output');
 		if (els.length) {
-			const contentEl = els[els.length - 1].querySelector('.content');
+			const contentEl = this._content(els[els.length - 1]);
 			if (!contentEl) return;
 			const resultEl = contentEl.querySelector('.tool-output-result-data');
 			if (resultEl) {
-				resultEl.textContent = content == null ? '' : String(content);
+				this._renderStructuredResult(resultEl, content);
 			} else {
 				contentEl.innerHTML = content == null ? '' : String(content);
 			}
@@ -297,10 +376,10 @@ class ToolOutput {
 		this.enable();
 		const els = document.querySelectorAll('.tool-output');
 		if (els.length) {
-			const contentEl = els[els.length - 1].querySelector('.content');
+			const contentEl = this._content(els[els.length - 1]);
 			if (!contentEl) return;
 			const resultEl = contentEl.querySelector('.tool-output-result-data');
-			if (resultEl) resultEl.replaceChildren();
+			if (resultEl) this._renderStructuredResult(resultEl, '');
 			else contentEl.replaceChildren();
 		}
 	}
@@ -314,7 +393,7 @@ class ToolOutput {
 			outputEl = el.querySelector('.tool-output:not(.tool-output-group)');
 		}
 		if (!outputEl) return;
-		const contentEl = outputEl.querySelector('.content');
+		const contentEl = this._content(outputEl);
 		if (!contentEl) return;
 
 		const expanded = contentEl.style.display === 'none';

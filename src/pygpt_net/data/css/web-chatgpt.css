@@ -414,6 +414,9 @@ think {{
   color: #4d4d4d !important;
   font-size: 0.75rem;
 }}
+.tool-output .tool-output-content {{
+  padding: 10px;
+}}
 .tool-output .toggle-cmd-output {{
   cursor: pointer;
   padding-top: 0px;
@@ -485,9 +488,6 @@ think {{
 }}
 .tool-output .tool-output-data {{
   margin-top: 6px;
-  font-family: 'Monaspace Neon';
-  white-space: pre-wrap;
-  word-break: break-word;
 }}
 
 
