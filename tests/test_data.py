@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2024.11.30 04:00:00                  #
+# Updated Date: 2026.09.05 12:30:00                  #
 # ================================================== #
 import configparser
 import io
@@ -22,6 +22,8 @@ def test_config():
     with open(path, "r") as f:
         data = json.load(f)
     assert "__meta__" in data
+    assert "api_custom_providers" in data
+    assert data["api_custom_providers"] == []
 
 
 def test_models():
@@ -46,6 +48,11 @@ def test_settings():
     with open(path, "r") as f:
         data = json.load(f)
     assert "api_key" in data
+    assert "api_custom_providers" in data
+    custom = data["api_custom_providers"]
+    assert custom["section"] == "custom_providers"
+    assert custom["type"] == "dict"
+    assert custom["keys"]["api_key"]["secret"] is True
 
 
 def test_settings_section():
@@ -54,6 +61,7 @@ def test_settings_section():
     with open(path, "r") as f:
         data = json.load(f)
     assert "general" in data
+    assert data["custom_providers"]["label"] == "settings.section.custom_providers"
 
 
 def test_presets():
@@ -133,3 +141,14 @@ def test_locale():
             data = io.open(path, mode="r", encoding="utf-8")
             ini.read_string(data.read())
             assert len(ini) > 0
+            if file.startswith("locale."):
+                locale = ini["LOCALE"]
+                for key in (
+                    "settings.section.custom_providers",
+                    "settings.custom_providers.list",
+                    "settings.custom_providers.list.desc",
+                    "settings.custom_providers.name",
+                    "settings.custom_providers.api_base",
+                    "settings.custom_providers.api_key",
+                ):
+                    assert key in locale

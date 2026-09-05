@@ -456,7 +456,12 @@ class Importer:
             key = m.id
 
             # prepare args and env config by provider
-            if self.provider == "anthropic":
+            if self.window.core.llm.is_custom_provider(self.provider):
+                # Runtime custom providers carry API base/key themselves. Keep
+                # models.json free of duplicated credentials; CustomLLM injects
+                # them into LlamaIndex OpenAILike at runtime.
+                m.tool_calls = True
+            elif self.provider == "anthropic":
                 m.tool_calls = True
                 m.llama_index['env'] = [
                     {

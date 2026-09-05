@@ -1196,6 +1196,24 @@ There is built-in support for those LLM providers:
 - `Perplexity`
 - `xAI` (native SDK)
 
+## Custom providers (OpenAI-compatible)
+
+You can add OpenAI Chat Completions-compatible providers at runtime without editing PyGPT source code or creating a custom launcher. Open:
+
+`Config -> Settings -> Custom providers`
+
+and add a row with:
+
+- **Provider name** - the name shown in provider selectors.
+- **API base URL** - the OpenAI-compatible API base, for example `https://example.com/v1`.
+- **API key** - the provider API key. It may be left empty when the endpoint does not require authentication.
+
+Custom providers are stored in `config.json` under the `api_custom_providers` key. After saving Settings, they are registered immediately and become available anywhere PyGPT uses the LLM provider registry, including the Models Editor and `Config -> Models -> Import`. The importer obtains the model list from the provider's OpenAI-compatible `/models` endpoint.
+
+Models assigned to a custom provider use the native OpenAI Python SDK with the **Chat Completions API** in normal Chat mode. In **Chat with Files (LlamaIndex)** and LlamaIndex-based flows, PyGPT uses the LlamaIndex `OpenAILike` wrapper with the same API base URL and API key. Custom runtime providers intentionally use Chat Completions compatibility; they do not enable the OpenAI Responses API.
+
+Once the provider is saved, import its models from `Config -> Models -> Import`, or create/edit a model manually and select the custom provider from the provider list. Model-specific `API base` / `API key` values in the Models Editor, when provided, override the custom provider values for that model.
+
 ## How to use local or non-GPT models
 
 ### Gemma 4, Qwen 3.6, Llama 4, Mistral, DeepSeek, Bielik, gpt-oss, and other local models
@@ -2363,6 +2381,10 @@ The options below mirror the current application settings defined in `settings.j
 
 - `API Endpoint`: Eden AI API endpoint URL, default: https://api.edenai.run/v3.
 
+**Custom providers**
+
+- `Custom providers`: Add runtime model providers compatible with the OpenAI Chat Completions API. Each entry contains `Provider name`, `API base URL`, and `API key`. Saved entries are stored in `api_custom_providers` and are added immediately to provider selectors and the model importer.
+
 **Layout**
 
 - `Style (chat)`: WebEngine / Chromium rendering engine only. Default: chatgpt.
@@ -3267,6 +3289,7 @@ may consume additional tokens that are not displayed in the main window.
 
 **2.8.8 (2026-09-05)**
 
+- Added runtime **Custom providers** for OpenAI Chat Completions-compatible APIs, including provider management in Settings, model importing, native OpenAI SDK Chat routing, and LlamaIndex `OpenAILike` support.
 - Fixed tool call responses in Chat with Files when using the Responses API.
 - Fixed attachment uploads in Chat with Files mode.
 - Fixed an issue where the remote store `after_update` hook silently failed to run — PR #203.

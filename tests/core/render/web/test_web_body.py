@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.08.16 14:30:00                  #
+# Updated Date: 2026.09.05 12:30:00                  #
 # ================================================== #
 import os
 import json
@@ -146,6 +146,7 @@ def test_get_image_html():
     html = b.get_image_html(url, 1, 2)
     assert 'extra-src-img-box' in html
     assert 'img.png' in html
+    assert '>img.png<' not in html
 
 
 def test_get_video_html_uses_file_url_for_source(monkeypatch):
@@ -159,7 +160,8 @@ def test_get_video_html_uses_file_url_for_source(monkeypatch):
     b = Body(win)
     html = b.get_image_html("/tmp/video/test.mp4")
     assert '<source src="file:///tmp/video/test.mp4" type="video/mp4">' in html
-    assert 'bridge://play_video/file:///tmp/video/test.mp4' in html
+    assert 'bridge://play_video/' not in html
+    assert '>test.mp4<' not in html
 
 
 def test_build_extras_dicts_uses_browser_url_for_media_path(monkeypatch):

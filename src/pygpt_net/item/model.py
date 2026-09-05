@@ -196,7 +196,8 @@ class ModelItem:
 
         :return: True if OpenAI compatible
         """
-        return self.provider in OPENAI_COMPATIBLE_PROVIDERS
+        return (self.provider in OPENAI_COMPATIBLE_PROVIDERS
+                or (isinstance(self.provider, str) and self.provider.startswith("custom_")))
 
     def is_gpt(self) -> bool:
         """

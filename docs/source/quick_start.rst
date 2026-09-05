@@ -35,3 +35,8 @@ Here, you can add or manage API keys for any supported provider.
    ``Config -> Models -> Edit -> Advanced`` using ``API base`` and ``API key``. This avoids having to
    reuse the global OpenAI endpoint/key for that model. If a compatible server expects a placeholder
    token even though it does not authenticate requests, set that placeholder only on the model.
+
+**Adding a custom OpenAI-compatible provider**
+
+For an OpenAI Chat Completions-compatible service, open ``Config -> Settings -> Custom providers`` and add its provider name, API base URL, and API key. Save Settings, then open ``Config -> Models -> Import`` and select the new provider to fetch its available models. Custom providers are registered immediately; no application restart is required.
+

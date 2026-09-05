@@ -630,6 +630,29 @@
     "advanced": false,
     "tab": "Eden AI"
   },
+  "api_custom_providers": {
+    "section": "custom_providers",
+    "type": "dict",
+    "keys": {
+      "name": {
+        "type": "text",
+        "label": "settings.custom_providers.name"
+      },
+      "api_base": {
+        "type": "text",
+        "label": "settings.custom_providers.api_base"
+      },
+      "api_key": {
+        "type": "text",
+        "label": "settings.custom_providers.api_key",
+        "secret": true
+      }
+    },
+    "label": "settings.custom_providers.list",
+    "description": "settings.custom_providers.list.desc",
+    "value": [],
+    "advanced": false
+  },
   "send_clear": {
     "section": "general",
     "type": "bool",

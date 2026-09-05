@@ -122,4 +122,5 @@ class Core:
         self.patch()
         self.debug.update_logger_path()
         self.config.setup_env()
+        self.llm.sync_custom(force=True)
         self.prompt.custom.reload()

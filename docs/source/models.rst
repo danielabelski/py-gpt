@@ -132,6 +132,27 @@ There is built-in support for those LLM providers:
 * ``Perplexity``
 * ``xAI`` (native SDK)
 
+Custom providers (OpenAI-compatible)
+------------------------------------
+
+PyGPT can create OpenAI Chat Completions-compatible model providers at runtime. No custom launcher or source-code registration is required. Open:
+
+.. code-block:: ini
+
+   Config -> Settings -> Custom providers
+
+Add one row per provider and configure:
+
+* ``Provider name`` - display name used in provider selectors.
+* ``API base URL`` - OpenAI-compatible API base URL, typically ending in ``/v1``.
+* ``API key`` - provider API key; it can be empty for endpoints that do not require authentication.
+
+The list is persisted in ``config.json`` under ``api_custom_providers``. Saving Settings updates the LLM provider registry immediately, so the provider becomes available in the Models Editor, model-provider filters, and ``Config -> Models -> Import`` without restarting PyGPT. The importer requests the provider's standard OpenAI-compatible ``/models`` endpoint.
+
+In normal ``Chat`` mode, models assigned to a runtime custom provider are sent through the native OpenAI Python SDK using the Chat Completions API and the configured base URL/key. In ``Chat with Files (LlamaIndex)`` and other LlamaIndex-based flows, the provider creates a LlamaIndex ``OpenAILike`` instance with the same connection settings. Runtime custom providers do not use the OpenAI Responses API.
+
+After defining the provider, import its models from ``Config -> Models -> Import`` or create/edit a model manually and select the new provider. Per-model ``API base`` and ``API key`` values, if set in the Models Editor, override the provider-level values for that model.
+
 Per-model API base and API key
 ------------------------------
 

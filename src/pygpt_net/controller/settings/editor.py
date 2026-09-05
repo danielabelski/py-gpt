@@ -132,6 +132,14 @@ class Editor:
             self.window.core.config.set('layout.tray.minimize', False)
 
         self.window.core.config.save()
+
+        # Runtime OpenAI-compatible providers are created/removed immediately,
+        # without restarting the application.
+        if (self.before_config.get('api_custom_providers', [])
+                != self.window.core.config.get('api_custom_providers', [])):
+            self.window.core.llm.sync_custom(force=True)
+            self.refresh_llm_provider_choices()
+
         self.window.update_status(trans('info.settings.saved'))
         self.window.controller.ui.update_font_size()
         self.window.controller.ui.update()
@@ -245,6 +253,27 @@ class Editor:
         # dispatch on update event
         event = Event(Event.SETTINGS_CHANGED)
         self.window.dispatch(event, all=True)
+
+    def refresh_llm_provider_choices(self):
+        """Refresh provider comboboxes that may already exist in runtime dialogs."""
+        ui = self.window.ui
+        provider_keys = self.window.controller.config.placeholder.apply_by_id('llm_providers')
+
+        # Models editor: per-model provider and global provider filter.
+        model_cfg = ui.config.get('model', {})
+        widget = model_cfg.get('provider')
+        if widget is not None and hasattr(widget, 'set_keys'):
+            widget.set_keys(provider_keys)
+        widget = model_cfg.get('provider_global')
+        if widget is not None and hasattr(widget, 'set_keys'):
+            widget.set_keys([{"-": trans("list.all")}] + list(provider_keys))
+
+        # Model importer provider list.
+        importer_cfg = ui.config.get('models.importer', {})
+        widget = importer_cfg.get('provider')
+        if widget is not None and hasattr(widget, 'set_keys'):
+            option = self.window.controller.model.importer.get_providers_option()
+            widget.set_keys(option.get('keys', []))
 
     def config_changed(self, key: str) -> bool:
         """

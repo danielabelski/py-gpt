@@ -226,6 +226,7 @@ class Settings:
         try:
             if file == "config.json":
                 self.window.core.config.load_config()  # reload config
+                self.window.core.llm.sync_custom(force=True)
             elif file == "models.json":
                 self.window.core.models.load()  # reload models
             elif file.endswith('.css'):

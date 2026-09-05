@@ -47,6 +47,9 @@
     "personalize": {
         "label": "settings.section.personalize"
     },
+    "custom_providers": {
+        "label": "settings.section.custom_providers"
+    },
     "updates": {
         "label": "settings.section.updates"
     },

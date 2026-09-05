@@ -502,6 +502,9 @@ def run(**kwargs):
             for llm in llms:
                 launcher.add_llm(llm)
 
+        # register runtime OpenAI-compatible providers saved in Settings
+        launcher.window.core.llm.sync_custom(force=True)
+
         # register base vector store providers (llama-index)
         launcher.add_vector_store(ChromaProvider())
         launcher.add_vector_store(ElasticsearchProvider())

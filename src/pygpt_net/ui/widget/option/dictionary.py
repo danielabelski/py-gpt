@@ -53,11 +53,20 @@ class OptionDict(QWidget):
 
         # setup dict model
         headers = list(self.keys.keys())
+        header_labels = {}
+        secret_headers = set()
+        for key, field in self.keys.items():
+            if isinstance(field, dict):
+                label = field.get("label")
+                if label:
+                    header_labels[key] = trans(label)
+                if field.get("secret", False):
+                    secret_headers.add(key)
 
         self.list = OptionDictItems(self)
         max_height_delegate = MaxHeightDelegate(40, self.list)
         self.list.setItemDelegate(max_height_delegate)
-        self.model = OptionDictModel(self.items, headers)
+        self.model = OptionDictModel(self.items, headers, header_labels=header_labels, secret_headers=secret_headers)
         self.model.dataChanged.connect(self.model.saveData)
 
         # append dict model
@@ -262,10 +271,12 @@ class OptionDictItems(QTreeView):
 
 
 class OptionDictModel(QAbstractItemModel):
-    def __init__(self, items, headers, parent=None):
+    def __init__(self, items, headers, parent=None, header_labels=None, secret_headers=None):
         super(OptionDictModel, self).__init__(parent)
         self.items = items
         self.headers = headers
+        self.header_labels = header_labels or {}
+        self.secret_headers = secret_headers or set()
         self.checkbox_key = 'enabled'
 
     def headerData(self, section, orientation, role):
@@ -278,6 +289,8 @@ class OptionDictModel(QAbstractItemModel):
         """
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
             title = self.headers[section]
+            if title in self.header_labels:
+                return self.header_labels[title]
             if title == "id":
                 return title.upper()
             else:
@@ -317,7 +330,10 @@ class OptionDictModel(QAbstractItemModel):
         if role == Qt.DisplayRole or role == Qt.EditRole:
             entry = self.items[index.row()]
             key = self.headers[index.column()]
-            return entry.get(key, "")
+            value = entry.get(key, "")
+            if role == Qt.DisplayRole and key in self.secret_headers and value:
+                return "••••••••"
+            return value
         return None
 
     def setData(self, index, value, role=Qt.EditRole):

@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.09.05 18:00:00                  #
+# Updated Date: 2026.09.05 12:30:00                  #
 # ================================================== #
 
 import os
@@ -53,7 +53,8 @@ def test_get_calls_init_and_llama_with_stream_and_sets_initialized(mock_window):
     provider.init = MagicMock()
     provider.llama = MagicMock(return_value="LLM_INSTANCE")
     provider.llama_multimodal = MagicMock(return_value=None)
-    mock_window.core.llm.llms = {"openai": provider}
+    mock_window.core.llm.get = MagicMock(side_effect=lambda provider_id: {"openai": provider}.get(provider_id))
+    mock_window.core.llm.is_custom_provider = MagicMock(return_value=False)
 
     llm = Llm(mock_window)
     assert llm.initialized is False
@@ -103,13 +104,27 @@ def test_get_returns_default_openai_when_provider_missing(mock_window, patch_ope
     model = ModelItem()
     model.provider = "not-registered"
 
-    mock_window.core.llm.llms = {}
+    mock_window.core.llm.get = MagicMock(return_value=None)
+    mock_window.core.llm.is_custom_provider = MagicMock(return_value=False)
 
     llm = Llm(mock_window)
     result = llm.get(model=model)
 
     assert isinstance(result, DummyOpenAI)
     assert len(instances) == 1
+
+
+def test_get_raises_when_runtime_custom_provider_is_missing(mock_window):
+    model = ModelItem()
+    model.provider = "custom_local_12345678"
+
+    mock_window.core.llm.get = MagicMock(return_value=None)
+    mock_window.core.llm.is_custom_provider = MagicMock(return_value=True)
+
+    llm = Llm(mock_window)
+
+    with pytest.raises(RuntimeError, match="Custom provider is not configured"):
+        llm.get(model=model)
 
 
 def test_get_embeddings_provider_uses_config_and_logs_model_name(mock_window):
@@ -125,7 +140,7 @@ def test_get_embeddings_provider_uses_config_and_logs_model_name(mock_window):
     emb_provider = MagicMock()
     emb_provider.init_embeddings = MagicMock()
     emb_provider.get_embeddings_model = MagicMock(return_value="EMB_MODEL")
-    mock_window.core.llm.llms = {provider_name: emb_provider}
+    mock_window.core.llm.get = MagicMock(side_effect=lambda provider_id: {provider_name: emb_provider}.get(provider_id))
 
     llm = Llm(mock_window)
     result = llm.get_embeddings_provider()
@@ -153,7 +168,7 @@ def test_get_embeddings_provider_falls_back_to_default_provider_when_missing(moc
     openai_emb = MagicMock()
     openai_emb.init_embeddings = MagicMock()
     openai_emb.get_embeddings_model = MagicMock(return_value="OPENAI_EMB")
-    mock_window.core.llm.llms = {"openai": openai_emb}
+    mock_window.core.llm.get = MagicMock(side_effect=lambda provider_id: {"openai": openai_emb}.get(provider_id))
 
     llm = Llm(mock_window)
     result = llm.get_embeddings_provider()
@@ -232,7 +247,7 @@ def test_get_custom_embed_provider_uses_matching_provider_and_includes_api_key(m
 
     emb_provider = MagicMock()
     emb_provider.get_embeddings_model = MagicMock(return_value="EMB_CUSTOM")
-    mock_window.core.llm.llms = {"provEmb": emb_provider}
+    mock_window.core.llm.get = MagicMock(side_effect=lambda provider_id: {"provEmb": emb_provider}.get(provider_id))
 
     mock_window.core.models.prepare_client_args = MagicMock(return_value={"api_key": "KEY123"})
 
@@ -262,7 +277,7 @@ def test_get_custom_embed_provider_ollama_no_api_key_and_uses_model_id_when_empt
 
     emb_provider = MagicMock()
     emb_provider.get_embeddings_model = MagicMock(return_value="EMB_OLLAMA")
-    mock_window.core.llm.llms = {"ollama": emb_provider}
+    mock_window.core.llm.get = MagicMock(side_effect=lambda provider_id: {"ollama": emb_provider}.get(provider_id))
 
     mock_window.core.models.prepare_client_args = MagicMock(return_value={"api_key": "IGNORED"})
 
@@ -291,9 +306,10 @@ def test_get_custom_embed_provider_fallbacks_to_global_when_not_configured_or_no
     llm = Llm(mock_window)
     llm.get_embeddings_provider = MagicMock(return_value=global_emb_return)
 
-    mock_window.core.llm.llms = {
-        "provX": MagicMock(get_embeddings_model=MagicMock(return_value=None))
-    }
+    missing_embed_provider = MagicMock(get_embeddings_model=MagicMock(return_value=None))
+    mock_window.core.llm.get = MagicMock(
+        side_effect=lambda provider_id: {"provX": missing_embed_provider}.get(provider_id)
+    )
 
     model = ModelItem()
     model.provider = "provX"

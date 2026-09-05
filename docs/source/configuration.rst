@@ -135,6 +135,12 @@ The options below mirror the current application settings defined in ``settings.
 
 * ``API Endpoint``: Eden AI API endpoint URL, default: https://api.edenai.run/v3.
 
+**Custom providers**
+
+* ``Custom providers``: A runtime list of model providers compatible with the OpenAI Chat Completions API. Each row contains ``Provider name``, ``API base URL``, and ``API key``. Entries are stored in ``config.json`` as ``api_custom_providers`` and are registered immediately after Settings are saved.
+
+  Custom providers appear in model provider selectors and in ``Config -> Models -> Import``. Normal Chat requests use the native OpenAI SDK against the configured base URL. Chat with Files uses LlamaIndex ``OpenAILike``. The model importer reads the OpenAI-compatible ``/models`` endpoint.
+
 **Layout**
 
 * ``Style (chat)``: WebEngine / Chromium rendering engine only. Default: chatgpt.

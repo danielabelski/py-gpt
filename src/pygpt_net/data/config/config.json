@@ -90,6 +90,7 @@
   "api_key_management_xai": "",
   "api_key_mistral": "",
   "api_key_open_router": "",
+  "api_custom_providers": [],
   "api_key_perplexity": "",
   "api_key_voyage": "",
   "api_key_xai": "",

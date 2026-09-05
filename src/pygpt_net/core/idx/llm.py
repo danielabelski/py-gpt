@@ -67,20 +67,23 @@ class Llm:
         llm = None
         if model is not None:
             provider = model.get_provider()
-            if provider in self.window.core.llm.llms:
+            llm_provider = self.window.core.llm.get(provider)
+            if llm_provider is not None:
                 # init env vars
-                self.window.core.llm.llms[provider].init(
+                llm_provider.init(
                     window=self.window,
                     model=model,
                     mode=MODE_LLAMA_INDEX,
                     sub_mode="",
                 )
                 # get llama LLM instance
-                llm = self.window.core.llm.llms[provider].llama(
+                llm = llm_provider.llama(
                     window=self.window,
                     model=model,
                     stream=stream,
                 )
+            elif self.window.core.llm.is_custom_provider(provider):
+                raise RuntimeError(f"Custom provider is not configured: {provider}")
 
         # default model
         if llm is None:
@@ -101,16 +104,18 @@ class Llm:
         env = self.window.core.config.get("llama.idx.embeddings.env", [])
         args = self.window.core.config.get("llama.idx.embeddings.args", [])
 
-        if provider is None or provider not in self.window.core.llm.llms:
+        llm_provider = self.window.core.llm.get(provider) if provider is not None else None
+        if llm_provider is None:
             provider = self.default_embed
+            llm_provider = self.window.core.llm.get(provider)
 
-        self.window.core.llm.llms[provider].init_embeddings(
+        llm_provider.init_embeddings(
             window=self.window,
             env=env,
         )
         model_name = self.extract_model_name_from_args(args)
         self.window.core.idx.log(f"Embeddings: using global provider: {provider}, model_name: {model_name}")
-        return self.window.core.llm.llms[provider].get_embeddings_model(
+        return llm_provider.get_embeddings_model(
             window=self.window,
             config=args,
         )
@@ -191,10 +196,12 @@ class Llm:
                 break
 
         if is_custom_provider:
-            embed_model = self.window.core.llm.llms[model.provider].get_embeddings_model(
-                window=self.window,
-                config=args,
-            )
+            llm_provider = self.window.core.llm.get(model.provider)
+            if llm_provider is not None:
+                embed_model = llm_provider.get_embeddings_model(
+                    window=self.window,
+                    config=args,
+                )
         if not embed_model:
             self.window.core.idx.log(f"Embeddings: not configured for {model.provider}. Fallback: using global provider.")
             embed_model = self.get_embeddings_provider()

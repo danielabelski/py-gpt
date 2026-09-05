@@ -528,6 +528,18 @@ class Models:
                 args["api_key"] = "ollama"
                 args["base_url"] = self.window.core.models.ollama.get_base_url() + "/v1"
                 self.window.core.debug.info("[api] Using client: Ollama")
+            elif self.window.core.llm.is_custom_provider(model.provider):
+                provider = self.window.core.llm.get(model.provider)
+                if provider is None:
+                    raise RuntimeError(
+                        f"Custom provider is not configured: {model.provider}"
+                    )
+                if getattr(provider, "is_runtime_custom", False):
+                    args["api_key"] = provider.get_api_key()
+                    args["base_url"] = provider.api_base
+                    self.window.core.debug.info(
+                        f"[api] Using client: custom provider ({provider.name})"
+                    )
             else:
                 self.window.core.debug.info("[api] Using client: OpenAI (default)")
 
