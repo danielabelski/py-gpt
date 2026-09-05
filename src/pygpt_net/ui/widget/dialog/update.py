@@ -45,11 +45,11 @@ class UpdateDialog(BaseDialog):
             lambda: self.window.controller.dialogs.info.goto_update()
         )
 
-        # snap store
-        self.snap_store = QPushButton(trans('update.snap'))
-        self.snap_store.setCursor(Qt.PointingHandCursor)
-        self.snap_store.clicked.connect(
-            lambda: self.window.controller.dialogs.info.goto_snap()
+        # github
+        self.github = QPushButton(trans('about.btn.github'))
+        self.github.setCursor(Qt.PointingHandCursor)
+        self.github.clicked.connect(
+            lambda: self.window.controller.dialogs.info.goto_github()
         )
 
         self.changelog = QPlainTextEdit()
@@ -65,7 +65,7 @@ class UpdateDialog(BaseDialog):
 
         buttons = QHBoxLayout()
         buttons.addWidget(self.www)
-        buttons.addWidget(self.snap_store)
+        buttons.addWidget(self.github)
 
         # checkbox startup
         self.checkbox_startup = QCheckBox(trans("updater.check.launch"))
@@ -178,7 +178,6 @@ class UpdateDialog(BaseDialog):
         # check platform
         self.cmd.setVisible(False)
         self.download_file.setVisible(False)
-        self.snap_store.setVisible(False)
 
         if is_new:
             if self.window.core.platforms.is_snap():  # snap
@@ -210,7 +209,3 @@ class UpdateDialog(BaseDialog):
                 self.cmd.setText(self.cmd_pip)
                 self.cmd.setVisible(True)
                 
-
-        # show snap store button
-        if self.window.core.platforms.is_linux():
-            self.snap_store.setVisible(True)
