@@ -16,6 +16,7 @@ from pygpt_net.core.events import Event
 from pygpt_net.item.ctx import CtxItem
 from tests.mocks import mock_window
 from pygpt_net.plugin.cmd_files import Plugin
+from pygpt_net.plugin.cmd_files.worker import Worker
 
 
 def test_options(mock_window):
@@ -116,3 +117,56 @@ def test_get_index_name_can_disable_project_override(mock_window):
 
     assert plugin.get_index_name() == "docs"
     mock_window.core.idx.get_current_project_idx.assert_not_called()
+
+
+def test_tool_response_request_preserves_list_path_type():
+    """The request echoed with a tool result must keep JSON-native types."""
+    worker = Worker()
+    response = worker.make_response(
+        {
+            "cmd": "read_file",
+            "params": {
+                "path": ["/tmp/a.txt", "/tmp/b.txt"],
+            },
+        },
+        result=[],
+    )
+
+    assert response["request"] == {
+        "cmd": "read_file",
+        "path": ["/tmp/a.txt", "/tmp/b.txt"],
+    }
+    assert isinstance(response["request"]["path"], list)
+
+
+def test_tool_response_request_keeps_string_query_as_string():
+    """JSON-looking text is still text; only its original type is preserved."""
+    worker = Worker()
+    request = worker.from_request({
+        "cmd": "query_file",
+        "params": {
+            "path": "/tmp/a.txt",
+            "query": '{"question": "content?"}',
+        },
+    })
+
+    assert request["path"] == "/tmp/a.txt"
+    assert request["query"] == '{"question": "content?"}'
+    assert isinstance(request["query"], str)
+
+
+def test_tool_response_request_falls_back_for_non_json_value():
+    """Non-JSON internal values keep the legacy string fallback."""
+    from pathlib import Path
+
+    worker = Worker()
+    request = worker.from_request({
+        "cmd": "read_file",
+        "params": {
+            "path": Path("/tmp/a.txt"),
+        },
+    })
+
+    assert request["path"] == "/tmp/a.txt"
+    assert isinstance(request["path"], str)
+

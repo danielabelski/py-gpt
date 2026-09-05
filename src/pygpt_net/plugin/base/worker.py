@@ -9,6 +9,8 @@
 # Updated Date: 2025.08.11 14:00:00                  #
 # ================================================== #
 
+import json
+
 from typing import Optional, Any, Dict, List
 
 from PySide6.QtCore import QRunnable
@@ -195,7 +197,16 @@ class BaseWorker(QRunnable):
         if "params" in item and isinstance(item["params"], dict):
             for k in append_params:
                 if k in item["params"]:
-                    data[k] = str(item["params"][k])
+                    value = item["params"][k]
+                    try:
+                        # Keep JSON-native types intact in the request echoed
+                        # with the tool result. In particular, list-valued
+                        # paths must remain JSON arrays instead of becoming a
+                        # Python repr string such as "['file.txt']".
+                        data[k] = json.loads(json.dumps(value, ensure_ascii=False))
+                    except (TypeError, ValueError, OverflowError):
+                        # Keep the old safety net for non-JSON internal values.
+                        data[k] = str(value)
         return data
 
     def make_response(
