@@ -123,18 +123,6 @@ class Patch:
                 # < 2.4.11
                 if old < parse_version("2.4.11"):
                     if 'agent_openai_assistant' not in self.window.core.presets.items and not is_agent_assistant:
-                        print("Migrating preset file from < 2.4.11...")
-                        files = [
-                            'agent_openai_assistant.json',
-                        ]
-                        for file in files:
-                            dst = os.path.join(self.window.core.config.get_user_dir('presets'), file)
-                            src = os.path.join(self.window.core.config.get_app_path(), 'data', 'config',
-                                               'presets', file)
-                            shutil.copyfile(src, dst)
-                            print("Patched file: {}.".format(dst))
-
-                        updated = True
                         is_agent_assistant = True  # prevent multiple copies
 
                 # < 2.5.33

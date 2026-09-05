@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2.8.9 (2026-09-05)
+
+- Added a new **Custom Providers** tab to Settings, allowing users to create and use custom API providers at runtime without modifying the source code.
+- Added sandboxed system command execution to the **Code Interpreter** plugin.
+- Added an **Active** checkbox to the uploaded attachments list, allowing attachments to be enabled or disabled at runtime.
+- Added rendering of tool results as formatted JSON code blocks.
+- Fixed busy-state rendering in Agents workflows.
+- Removed image footers from the WebView.
+
 ## 2.8.8 (2026-09-05)
 
 - Fixed tool call responses in Chat with Files when using the Responses API.
