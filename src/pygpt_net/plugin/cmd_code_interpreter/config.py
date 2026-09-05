@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.04 14:55:00                  #
+# Updated Date: 2026.09.05 13:20:00
 # ================================================== #
 
 from pygpt_net.plugin.base.config import BaseConfig, BasePlugin
@@ -218,6 +218,25 @@ class Config(BaseConfig):
             ],
             enabled=True,
             description="Allows Python code execution in IPython interpreter (in current kernel)",
+            tab="ipython",
+        )
+        plugin.add_cmd(
+            "ipython_sys_exec",
+            instruction="execute a system/shell command in the Code Interpreter environment. "
+                        "When the IPython Docker sandbox is enabled, execute the command inside the same "
+                        "running IPython container. When the sandbox is disabled, execute it on the host. "
+                        "Use this for operating-system commands and command-line tools; use ipython_execute "
+                        "for Python code.",
+            params=[
+                {
+                    "name": "command",
+                    "type": "str",
+                    "description": "system/shell command to execute",
+                    "required": True,
+                },
+            ],
+            enabled=True,
+            description="Allows system commands execution in the IPython environment",
             tab="ipython",
         )
         """

@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.07.17 19:00:00                  #
+# Updated Date: 2026.09.05 13:20:00
 # ================================================== #
 
 import os.path
@@ -382,6 +382,48 @@ class Runner:
             "request": request,
             "result": str(result),
             "context": "PYTHON OUTPUT:\n--------------------------------\n" + self.parse_result(result),
+        }
+
+    def ipython_sys_exec_host(self, ctx: CtxItem, item: dict, request: dict) -> dict:
+        """Execute a system command on the host for the IPython tool."""
+        command = item["params"]["command"]
+        self.plugin.window.core.security.ensure_command(command, sandbox=False)
+        self.log("Executing IPython system command: {}".format(command))
+        self.log("Running command: {}".format(command))
+        try:
+            self.send_interpreter_output_begin("stdout")
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            stdout, stderr = process.communicate()
+        except Exception as e:
+            self.error(e)
+            stdout = None
+            stderr = str(e).encode("utf-8")
+        result = self.handle_result(stdout, stderr)
+        self.send_interpreter_output_end("stdout")
+        return {
+            "request": request,
+            "result": str(result),
+            "context": "SYS OUTPUT:\n--------------------------------\n" + self.parse_result(result),
+        }
+
+    def ipython_sys_exec_sandbox(self, ctx: CtxItem, item: dict, request: dict) -> dict:
+        """Execute a system command inside the running IPython Docker container."""
+        command = item["params"]["command"]
+        self.log("Executing IPython system command: {}".format(command), sandbox=True)
+        self.log("Running command: {}".format(command), sandbox=True)
+        self.send_interpreter_output_begin("stdout")
+        response = self.plugin.ipython_docker.execute_system(command)
+        result = self.handle_result_docker(response)
+        self.send_interpreter_output_end("stdout")
+        return {
+            "request": request,
+            "result": str(result),
+            "context": "SYS OUTPUT:\n--------------------------------\n" + self.parse_result(result),
         }
 
     def ipython_execute_new(self, ctx, item: dict, request: dict, all: bool = False) -> dict:

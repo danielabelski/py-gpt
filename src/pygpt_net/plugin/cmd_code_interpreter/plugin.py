@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2026.09.04 14:55:00                  #
+# Updated Date: 2026.09.05 13:20:00
 # ================================================== #
 
 import os
@@ -52,6 +52,7 @@ class Plugin(BasePlugin):
         self.allowed_cmds = [
             # "ipython_execute_new",
             "ipython_execute",
+            "ipython_sys_exec",
             "ipython_kernel_restart",
             "code_execute",
             "code_execute_file",
@@ -144,11 +145,18 @@ class Plugin(BasePlugin):
         for item in self.allowed_cmds:
             if self.has_cmd(item):
                 cmd = self.get_cmd(item)
-                if item in ["ipython_execute", "ipython_execute_new"]:
+                if item in ["ipython_execute", "ipython_execute_new", "ipython_sys_exec"]:
                     if self.get_option_value("sandbox_ipython"):
-                        cmd["instruction"] += (
-                            "\nIPython works in Docker container. Directory /data is the container's workdir - "
-                            "directory is mapped as volume in host machine to: {}").format(ipython_data)
+                        if item == "ipython_sys_exec":
+                            cmd["instruction"] += (
+                                "\nThe command runs inside the same Docker container as the current IPython kernel. "
+                                "Directory /data is the container's workdir and is mapped on the host to: {}"
+                            ).format(ipython_data)
+                        else:
+                            cmd["instruction"] += (
+                                "\nIPython works in Docker container. Directory /data is the container's workdir - "
+                                "directory is mapped as volume in host machine to: {}"
+                            ).format(ipython_data)
                         if self.get_option_value("ipython_run_as_root"):
                             cmd["instruction"] += (
                                 "\nThe IPython Docker sandbox is configured to run as root. sudo is not required."
@@ -160,9 +168,16 @@ class Plugin(BasePlugin):
                                 "operations that require root privileges."
                             )
                     else:
-                        cmd["instruction"] += (
-                            "\nIPython works in local environment. Directory {} is the workdir - "
-                            "use it by default to save files: {}").format(ipython_data, legacy_data)
+                        if item == "ipython_sys_exec":
+                            cmd["instruction"] += (
+                                "\nThe command runs on the host system, in the same host environment used by the "
+                                "local Code Interpreter. The application data directory is: {}"
+                            ).format(legacy_data)
+                        else:
+                            cmd["instruction"] += (
+                                "\nIPython works in local environment. Directory {} is the workdir - "
+                                "use it by default to save files: {}"
+                            ).format(ipython_data, legacy_data)
                 elif item in ["code_execute", "code_execute_file", "code_execute_all"]:
                     if self.get_option_value("sandbox_docker"):
                         cmd["instruction"] += (
@@ -212,6 +227,7 @@ class Plugin(BasePlugin):
             ipython_commands = [
                 "ipython_execute_new",
                 "ipython_execute",
+                "ipython_sys_exec",
                 "ipython_kernel_restart",
             ]
             if any(x in [x["cmd"] for x in my_commands] for x in ipython_commands):

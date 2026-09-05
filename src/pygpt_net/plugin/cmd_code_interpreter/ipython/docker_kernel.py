@@ -6,7 +6,7 @@
 # GitHub:  https://github.com/szczyglis-dev/py-gpt   #
 # MIT License                                        #
 # Created By  : Marcin Szczygliński                  #
-# Updated Date: 2025.08.06 01:00:00                  #
+# Updated Date: 2026.09.05 13:20:00
 # ================================================== #
 
 import base64
@@ -437,6 +437,42 @@ class DockerKernel:
         :return: Local data directory.
         """
         return str(os.path.join(self.plugin.window.core.config.get_user_dir("data")))
+
+    def execute_system(self, command: str) -> bytes:
+        """
+        Execute a shell command inside the same container as the IPython kernel.
+
+        The command is run through /bin/sh so pipes, redirects and compound
+        shell expressions behave like host-side shell execution.
+
+        :param command: shell command to execute
+        :return: combined stdout/stderr bytes
+        """
+        client = self.get_docker_client()
+        name = self.get_container_name()
+
+        try:
+            self.prepare_local_data_dir()
+            if not self.is_image():
+                self.build_image()
+
+            self.start_container(name)
+            container = client.containers.get(name)
+            container.reload()
+            if container.status != "running":
+                container.start()
+                container.reload()
+
+            result = container.exec_run(
+                ["/bin/sh", "-c", command],
+                stdout=True,
+                stderr=True,
+                workdir="/data",
+            )
+            return result.output or b""
+        except Exception as e:
+            self.log(f"Error executing command in IPython container: {e}")
+            return str(e).encode("utf-8")
 
     def check_ready(self):
         """
