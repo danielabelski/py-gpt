@@ -406,6 +406,7 @@ think {{
   margin-top: 15px;
   margin-bottom: 10px;
   font-weight: bold;
+  font-size: 0.8rem;
   color: gray;
 }}
 .tool-output .content {{

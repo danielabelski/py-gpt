@@ -328,13 +328,14 @@ class NodeTemplateEngine {
 				`<span class='tool-output-label'><b>${this._escapeHtml(toolLabel)}:</b>&nbsp;</span>` +
 				`<span class='tool-output-name'>${names.join(', ')}</span>${arrowHtml}` +
 				`</button>`;
+			const responseDisplay = resultCode ? '' : 'display:none';
 			contentHtml =
 				`<div class='tool-output-section'>` +
-				`<b>${this._escapeHtml(requestLabel)}</b>` +
+				`<div class='tool-output-header'>${this._escapeHtml(requestLabel)}</div>` +
 				`<div class='tool-output-data tool-output-request-data'>${requests}</div>` +
 				`</div>` +
-				`<div class='tool-output-section'>` +
-				`<b>${this._escapeHtml(responseLabel)}</b>` +
+				`<div class='tool-output-section tool-output-response-section' style='${responseDisplay}'>` +
+				`<div class='tool-output-header'>${this._escapeHtml(responseLabel)}</div>` +
 				`<div class='tool-output-data tool-output-result-data'>${resultCode}</div>` +
 				`</div>`;
 		}

@@ -277,9 +277,14 @@ class ToolOutput {
 	_renderStructuredResult(resultEl, content) {
 		if (!resultEl) return;
 		const raw = content == null ? '' : String(content);
+		const hasContent = raw.trim() !== '';
 		resultEl._toolRaw = raw;
+
+		const responseSection = resultEl.closest('.tool-output-response-section');
+		if (responseSection) responseSection.style.display = hasContent ? '' : 'none';
+
 		resultEl.replaceChildren();
-		if (!raw) return;
+		if (!hasContent) return;
 
 		const md = document.createElement('div');
 		md.className = 'tool-output-markdown';
