@@ -74,6 +74,9 @@ class Worker(BaseWorker):
                         elif item["cmd"] == "ipython_sys_exec":
                             response = self.cmd_ipython_sys_exec(item)
 
+                        elif item["cmd"] == "python_sys_exec":
+                            response = self.cmd_python_sys_exec(item)
+
                         elif item["cmd"] == "ipython_kernel_restart":
                             response = self.cmd_ipython_kernel_restart(item)
                             if "silent" in item:
@@ -169,6 +172,33 @@ class Worker(BaseWorker):
                 )
             else:
                 result = self.plugin.runner.ipython_sys_exec_host(
+                    ctx=self.ctx,
+                    item=item,
+                    request=request,
+                )
+        except Exception as e:
+            result = self.throw_error(e)
+
+        extra = self.prepare_extra(item, result)
+        return self.make_response(item, result, extra=extra)
+
+    def cmd_python_sys_exec(self, item: dict) -> dict:
+        """
+        Execute a system command in the legacy Python environment.
+
+        :param item: command item
+        :return: response item
+        """
+        request = self.from_request(item)
+        try:
+            if self.plugin.runner.is_sandbox():
+                result = self.plugin.runner.python_sys_exec_sandbox(
+                    ctx=self.ctx,
+                    item=item,
+                    request=request,
+                )
+            else:
+                result = self.plugin.runner.python_sys_exec_host(
                     ctx=self.ctx,
                     item=item,
                     request=request,
@@ -375,13 +405,13 @@ class Worker(BaseWorker):
         lang = "python"
         if cmd in ["render_html_output", "get_html_output"]:
             lang = "html"
-        elif cmd in ["ipython_sys_exec", "sys_exec"]:
+        elif cmd in ["ipython_sys_exec", "python_sys_exec", "sys_exec"]:
             lang = "bash"
         if "params" in item and "code" in item["params"]:
             extra["code"]["input"] = {}
             extra["code"]["input"]["lang"] = lang
             extra["code"]["input"]["content"] = str(item["params"]["code"])
-        elif cmd == "ipython_sys_exec" and "params" in item and "command" in item["params"]:
+        elif cmd in ["ipython_sys_exec", "python_sys_exec"] and "params" in item and "command" in item["params"]:
             extra["code"]["input"] = {}
             extra["code"]["input"]["lang"] = "bash"
             extra["code"]["input"]["content"] = str(item["params"]["command"])

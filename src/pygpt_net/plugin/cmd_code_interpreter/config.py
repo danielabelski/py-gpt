@@ -423,6 +423,25 @@ class Config(BaseConfig):
 
         # commands
         plugin.add_cmd(
+            "python_sys_exec",
+            instruction="execute a system/shell command in the legacy Python Code Interpreter environment. "
+                        "When the legacy Python Docker sandbox is enabled, execute the command inside the same "
+                        "Python container. When the sandbox is disabled, execute it on the host. Use this for "
+                        "operating-system commands and command-line tools; use code_execute/code_execute_file "
+                        "for Python code.",
+            params=[
+                {
+                    "name": "command",
+                    "type": "str",
+                    "description": "system/shell command to execute",
+                    "required": True,
+                },
+            ],
+            enabled=True,
+            description="Allows system commands execution in the legacy Python environment",
+            tab="python_legacy",
+        )
+        plugin.add_cmd(
             "code_execute",
             instruction="save generated Python code and execute it",
             params=[

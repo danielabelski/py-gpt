@@ -54,6 +54,7 @@ class Plugin(BasePlugin):
             "ipython_execute",
             "ipython_sys_exec",
             "ipython_kernel_restart",
+            "python_sys_exec",
             "code_execute",
             "code_execute_file",
             "code_execute_all",
@@ -142,8 +143,25 @@ class Plugin(BasePlugin):
         legacy_data = self.window.core.config.get_user_dir('data')
         ipython_data = legacy_data
 
+        ipython_enabled = any(
+            self.has_cmd(cmd)
+            for cmd in ["ipython_execute", "ipython_execute_new"]
+        )
+        legacy_enabled = any(
+            self.has_cmd(cmd)
+            for cmd in ["code_execute", "code_execute_file", "code_execute_all"]
+        )
+
         for item in self.allowed_cmds:
             if self.has_cmd(item):
+                # Expose the system-command tool that belongs to the active
+                # interpreter. When both interpreter families are enabled,
+                # both tools are intentionally available.
+                if item == "ipython_sys_exec" and not ipython_enabled:
+                    continue
+                if item == "python_sys_exec" and not legacy_enabled:
+                    continue
+
                 cmd = self.get_cmd(item)
                 if item in ["ipython_execute", "ipython_execute_new", "ipython_sys_exec"]:
                     if self.get_option_value("sandbox_ipython"):
@@ -178,11 +196,19 @@ class Plugin(BasePlugin):
                                 "\nIPython works in local environment. Directory {} is the workdir - "
                                 "use it by default to save files: {}"
                             ).format(ipython_data, legacy_data)
-                elif item in ["code_execute", "code_execute_file", "code_execute_all"]:
+                elif item in ["code_execute", "code_execute_file", "code_execute_all", "python_sys_exec"]:
                     if self.get_option_value("sandbox_docker"):
-                        cmd["instruction"] += (
-                            "\nPython works in Docker container. Directory /data is the container's workdir - "
-                            "directory is mapped as volume in host machine to: {}").format(legacy_data)
+                        if item == "python_sys_exec":
+                            cmd["instruction"] += (
+                                "\nThe command runs inside the same Docker container as the legacy Python "
+                                "interpreter. Directory /data is the container's workdir and is mapped on the "
+                                "host to: {}"
+                            ).format(legacy_data)
+                        else:
+                            cmd["instruction"] += (
+                                "\nPython works in Docker container. Directory /data is the container's workdir - "
+                                "directory is mapped as volume in host machine to: {}"
+                            ).format(legacy_data)
                         if self.get_option_value("docker_run_as_root"):
                             cmd["instruction"] += (
                                 "\nThe Python Docker sandbox is configured to run as root. sudo is not required."
@@ -194,9 +220,16 @@ class Plugin(BasePlugin):
                                 "operations that require root privileges."
                             )
                     else:
-                        cmd["instruction"] += (
-                            "\nPython works in local environment. Directory {} is the workdir - "
-                            "use it by default to save files: {}").format(legacy_data, legacy_data)
+                        if item == "python_sys_exec":
+                            cmd["instruction"] += (
+                                "\nThe command runs on the host system, in the same host environment used by the "
+                                "legacy Python Code Interpreter. The application data directory is: {}"
+                            ).format(legacy_data)
+                        else:
+                            cmd["instruction"] += (
+                                "\nPython works in local environment. Directory {} is the workdir - "
+                                "use it by default to save files: {}"
+                            ).format(legacy_data, legacy_data)
                 data['cmd'].append(cmd)  # append command
 
     def cmd(self, ctx: CtxItem, cmds: list, silent: bool = False):
@@ -252,6 +285,7 @@ class Plugin(BasePlugin):
         # legacy python
         if self.get_option_value("sandbox_docker"):
             sandbox_commands = [
+                "python_sys_exec",
                 "code_execute",
                 "code_execute_all",
                 "code_execute_file",
